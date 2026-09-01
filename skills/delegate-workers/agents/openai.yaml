@@ -1,0 +1,4 @@
+interface:
+  display_name: "Delegate Workers"
+  short_description: "Delegate bounded tasks to other coding agents"
+  default_prompt: "Delegate an independent coding task to an available TaskShuttle worker and report its verified result."

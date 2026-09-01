@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "kimi",
+  "kind": "managed-plugin",
+  "baseline": "0.38.0",
+  "scopes": ["user"],
+  "kits": ["stdio-mcp", "shared-skill", "stop-hook", "managed-copy"],
+  "driver": "driver.ts",
+  "versionedManifest": "kimi.plugin.json",
+  "artifacts": [
+    { "role": "mcp-config", "path": ".mcp.json", "generated": false },
+    { "role": "plugin-manifest", "path": "kimi.plugin.json", "generated": false },
+    { "role": "license", "path": "LICENSE", "generated": true },
+    { "role": "notice", "path": "NOTICE", "generated": true },
+    { "role": "runtime-bundle", "path": "dist", "generated": true },
+    { "role": "skills", "path": "skills", "generated": true }
+  ]
+}

@@ -1,0 +1,49 @@
+node_modules/
+dist/
+coverage/
+*.log
+.transcripts/
+hosts/*/skills/
+marketplaces/*/plugins/
+release/gates/
+# The public package receives generated copies during the build; root hosts,
+# marketplaces, and release metadata remain their source owners.
+packages/plugin/dist/
+packages/plugin/hosts/
+packages/plugin/marketplaces/
+packages/plugin/release/
+packages/plugin/skills/
+packages/plugin/README.md
+packages/plugin/README.zh-CN.md
+packages/plugin/LICENSE
+packages/plugin/NOTICE
+
+# lean-ctx local tool state (absolute paths, other repos)
+.lean-ctx/
+
+# worker context handoff: keep per-dispatch
+# L2 files and other runtime state local, while the reviewed L1 brief follows
+# git worktrees and is distributed with the repository.
+.taskshuttle/*
+!.taskshuttle/brief.md
+.build/
+
+# git worktrees created by the Linear issue workflow
+.worktree/
+
+# `scripts/deploy.ts` packs one tarball per version here and installs it; the
+# digest, not the file, is what a later step verifies. The two committed
+# realm-agent-plugin-* tarballs are NOT build output — they are STO-018's
+# rollback fixtures, pinned by test/separation/rollback-contract.test.ts — so
+# this rule names the built artifact and nothing else.
+release/taskshuttle-*.tgz
+
+# The identity of the tarball a deploy packed and installed, handed from
+# `release:publish` to `release:npm` on one machine. Not evidence anyone else
+# reads, and stale the moment the next version is packed.
+release/artifacts.json
+
+# The export record hands `export-public` and `publish-public` the file list and
+# hashes of one export. It must not reach the release repository's history, and
+# the exported copy of this file is what keeps it out.
+.export-manifest.json

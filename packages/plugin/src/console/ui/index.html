@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskShuttle Console</title>
+<!-- §7.5: no inline script/style anywhere; everything same-origin. -->
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+
+<!-- Top bar: instance metadata (§6 GET /api/instance) + SSE status -->
+<header class="topbar">
+  <div class="brand">
+    <span class="glyph">◇</span>
+    realm console
+  </div>
+  <div class="instance-meta mono" id="instance-meta">
+    <span>instance <b id="meta-instance">…</b></span>
+    <span class="sep">·</span>
+    <span>host <b id="meta-host">…</b></span>
+    <span class="sep">·</span>
+    <span>alive <b id="meta-alive" class="alive-yes">…</b></span>
+    <span class="sep">·</span>
+    <span class="engines-meta" id="meta-engines">engines</span>
+  </div>
+  <div class="spacer"></div>
+  <span class="budget-hint" id="mode-hint"></span>
+  <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light theme (T)" aria-label="Toggle dark/light theme">
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+  </button>
+  <div class="stream-pill" id="stream-pill">
+    <span class="dot"></span>
+    <span id="stream-label">SSE · connecting</span>
+  </div>
+</header>
+
+<!-- Three columns (§10); Topology swaps in for the left two (§10.1) -->
+<main class="layout">
+
+  <aside class="col col-sessions">
+    <div class="col-head">
+      <div class="view-tabs">
+        <button class="vt active" data-view="sessions">Sessions</button>
+        <button class="vt" data-view="topology">Topology</button>
+      </div>
+      <span class="count" id="session-count">0</span>
+    </div>
+    <div class="col-body" id="session-list"></div>
+  </aside>
+
+  <section class="col col-transcript">
+    <div class="transcript-wrap">
+      <div class="transcript-head">
+        <span class="title" id="tx-title">no session selected</span>
+        <span class="seq-range mono" id="tx-seq"></span>
+        <div class="view-tabs tx-tabs" id="tx-tabs">
+          <button class="vt active" data-txview="transcript">Transcript</button>
+          <button class="vt" data-txview="diff">Diff</button>
+        </div>
+        <div class="spacer"></div>
+      </div>
+      <div class="stream" id="stream"></div>
+      <div class="stream diff-stream" id="diff-stream"></div>
+      <div class="invalidated-banner" id="invalidated">
+        <div class="h">transcript deleted</div>
+        <div class="d">
+          The server pushed <code>{type:"invalidated"}</code> and closed this stream (§5.4).<br>
+          The event panel was cleared; further <code>GET …/events</code> for this session returns <code>404</code>.
+        </div>
+      </div>
+      <button class="to-bottom" id="to-bottom">↓ Jump to latest</button>
+    </div>
+  </section>
+
+  <!-- Topology (§10.1): second view, swapped with Sessions, spread wide -->
+  <section class="topo-view" id="topo-view">
+    <div class="topo-head">
+      <span class="title">Execution Topology</span>
+      <span class="hint">Derived view — every edge traces back to session/turn records (§5.5); observation only, no verdicts</span>
+      <div class="spacer"></div>
+      <div class="view-tabs">
+        <button class="vt" data-view="sessions">Sessions</button>
+        <button class="vt active" data-view="topology">Topology</button>
+      </div>
+    </div>
+    <div class="topo-scroll">
+      <div class="topo-inner" id="topo-inner">
+        <svg class="topo-edges" id="topo-edges" aria-hidden="true">
+          <defs>
+            <marker id="arrow-fork" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="m-fill-fork"></path>
+            </marker>
+            <marker id="arrow-time" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="m-fill-time"></path>
+            </marker>
+          </defs>
+          <g id="edges-g"></g>
+        </svg>
+        <div class="topo-legend">
+          <span class="lg"><i class="ls"></i>fork lineage</span>
+          <span class="lg"><i class="ls ls-wait"></i>scheduling wait · elapsed + engine slots</span>
+          <span class="lg"><i class="ls ls-cwd"></i>cwd overlap · hint only</span>
+          <span class="lg"><i class="ls ls-time"></i>temporal order · not a dependency</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="col">
+    <div class="col-head">Turns / Queue <span class="count" id="turn-count"></span></div>
+    <div class="col-body col-turns" id="turn-list"></div>
+    <div class="divider-label">Interactions <span class="count mono count-sub" id="ia-count"></span></div>
+    <div class="col-body col-ia" id="ia-list"></div>
+  </aside>
+
+</main>
+
+<footer class="statusbar">
+  <span class="item">bind <b id="status-bind">…</b></span>
+  <span class="item">exposeTranscripts <b id="status-expose">…</b></span>
+  <span class="spacer"></span>
+  <span class="item"><kbd>1</kbd>–<kbd>9</kbd> switch session</span>
+  <span class="item"><kbd>V</kbd> topology</span>
+  <span class="item"><kbd>G</kbd> latest</span>
+  <span class="item"><kbd>T</kbd> theme</span>
+</footer>
+
+</body>
+</html>

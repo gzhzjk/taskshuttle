@@ -1,0 +1,12 @@
+{
+  "name": "taskshuttle",
+  "interface": { "displayName": "TaskShuttle" },
+  "plugins": [
+    {
+      "name": "taskshuttle",
+      "source": { "source": "local", "path": "./plugins/taskshuttle" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}

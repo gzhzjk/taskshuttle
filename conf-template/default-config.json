@@ -1,0 +1,38 @@
+{
+  "defaultProfile": "implementing",
+  "profiles": {
+    "implementing": {
+      "purpose": "实现已定的任务。config 是全引擎适用的缺省补丁;engineConfig 按引擎 id 分槽,只对该引擎的会话生效。槽内键值抄自各引擎 2026-08-21 的实时 descriptor(worker_describe 的 configOptions 中 category 为 model / thought_level 且带 currentValue 的项)——是各引擎当时正在用的值,作示例缺省;改动前以 worker_describe 的最新输出为准,引擎不认识的键会在 session_create 时报引擎侧错误。claude-code 例外:它的 describe 只上报 reasoning(thought_level,创建期限定,low/medium/high,无 currentValue——probe 抄不到值),model 不在 configOptions 里,但 Realm 会把 model 键路由到它的会话面(runskein README 的规范示例即 claude-code + model);槽内 \"sonnet\" 取自该示例、reasoning \"medium\" 同样为手填(对应 maxThinkingTokens=10000)——这两个是本模板仅有的非 probe 来源值。装了新引擎可用 project_init(refresh)补槽——只追加、不改已有键值。",
+      "config": {},
+      "engineConfig": {
+        "codex": { "model": "gpt-5.6-terra", "reasoning_effort": "medium" },
+        "claude-code": { "model": "sonnet", "reasoning": "medium" },
+        "opencode": { "model": "opencode-go/gpt-5.6-luna", "effort": "none" },
+        "kimi": { "model": "kimi-code/k3-256k", "thinking": "high" },
+        "pi": { "model": "DeepSeek-V4-Flash-0731/DeepSeek-V4-Flash" }
+      }
+    },
+    "reviewing": {
+      "purpose": "评审别人的改动。config 与 engineConfig 填法同 implementing 档。",
+      "config": {},
+      "engineConfig": {
+        "codex": { "model": "gpt-5.6-terra", "reasoning_effort": "medium" },
+        "claude-code": { "model": "sonnet", "reasoning": "medium" },
+        "opencode": { "model": "opencode-go/gpt-5.6-luna", "effort": "none" },
+        "kimi": { "model": "kimi-code/k3-256k", "thinking": "high" },
+        "pi": { "model": "DeepSeek-V4-Flash-0731/DeepSeek-V4-Flash" }
+      }
+    },
+    "investigating": {
+      "purpose": "排查与调研。config 与 engineConfig 填法同 implementing 档。",
+      "config": {},
+      "engineConfig": {
+        "codex": { "model": "gpt-5.6-terra", "reasoning_effort": "medium" },
+        "claude-code": { "model": "sonnet", "reasoning": "medium" },
+        "opencode": { "model": "opencode-go/gpt-5.6-luna", "effort": "none" },
+        "kimi": { "model": "kimi-code/k3-256k", "thinking": "high" },
+        "pi": { "model": "DeepSeek-V4-Flash-0731/DeepSeek-V4-Flash" }
+      }
+    }
+  }
+}

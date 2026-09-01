@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.package.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "tsBuildInfoFile": "./.build/root.tsbuildinfo"
+  },
+  "include": ["test/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["packages/*/dist/**", "hosts/*/dist/**", ".worktree/**"],
+  "references": [
+    { "path": "./packages/core/tsconfig.json" },
+    { "path": "./packages/host-kit/tsconfig.json" }
+  ]
+}

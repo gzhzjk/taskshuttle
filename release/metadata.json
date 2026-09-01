@@ -1,0 +1,82 @@
+{
+  "realmVersion": "0.1.1",
+  "hosts": {
+    "codex": "0.148.0",
+    "claude-code": "2.1.238",
+    "opencode": "1.18.19",
+    "kimi": "0.38.0"
+  },
+  "wrappers": {
+    "codex-acp": "1.3.0",
+    "claude-agent-acp": "0.70.0"
+  },
+  "artifact": {
+    "generatedBy": "pnpm check",
+    "runtimeBundled": true
+  },
+  "verification": {
+    "note": "The host and engine baseline maps are the declared compatibility baselines. `verification.engines` is positive live-matrix evidence used for admission: true requires the required round-trip evidence, while false records that evidence was not established and an absent row is unknown. Known capability defects remain a separate case-level channel. Reports captured with a newer installed CLI than the declared baseline are supplementary observations and do not widen or establish the baseline support claim.",
+    "hosts": {
+      "codex": false,
+      "claude-code": false,
+      "opencode": false,
+      "kimi": false
+    },
+    "engines": {
+      "codex": true,
+      "claude-code": true,
+      "opencode": true,
+      "kimi": false,
+      "pi": true
+    },
+    "workflows": {
+      "WF-001": false,
+      "WF-002": false
+    },
+    "platforms": {
+      "darwin": "harness only"
+    },
+    "evidence": {
+      "engines": {
+      "codex": "release/gates/engine-2026-09-01T06-04-14-512Z.md (live supplementary run, plugin 0.1.0-alpha.4 @ 96ed6bfd986d, artifact 515a4a47c2711d07, newer codex-cli 0.149.0 than declared host baseline 0.148.0, runskein 0.1.1, darwin arm64); ENG-CODEX-001 round trip, ENG-FORK-001 NOT_SUPPORTED and ENG-CAP-001 pass; ENG-INT-001 na (a live engine cannot be forced to request permission)",
+      "claude-code": "release/gates/engine-2026-09-01T06-04-14-512Z.md (live supplementary run, plugin 0.1.0-alpha.4 @ 96ed6bfd986d, artifact 515a4a47c2711d07, newer Claude Code 2.1.252 than declared host baseline 2.1.238 via claude-agent-acp 0.70.0, runskein 0.1.1, darwin arm64); round trip and capability pass, ENG-FORK-001-claude-code fails with Resource not found and remains the recorded knownDefect",
+      "opencode": "release/gates/engine-2026-09-01T06-04-14-512Z.md (live supplementary run, plugin 0.1.0-alpha.4 @ 96ed6bfd986d, artifact 515a4a47c2711d07, newer opencode 1.18.25 than declared host baseline 1.18.19, runskein 0.1.1, darwin arm64); ENG-OPENCODE-001 / ENG-FORK-001-opencode / ENG-CAP-001-opencode pass",
+      "kimi": "release/gates/engine-2026-09-01T06-04-14-512Z.md (live supplementary run, plugin 0.1.0-alpha.4 @ 96ed6bfd986d, artifact 515a4a47c2711d07, newer kimi 0.39.1 than declared host baseline 0.38.0, runskein 0.1.1, darwin arm64); ENG-FORK-001-kimi and ENG-CAP-001-kimi pass, but ENG-KIMI-001 round trip is refused with the exact weekly-quota 403 authentication-required response; verification remains false and the unclassified account refusal yields no round-trip support claim",
+      "pi": "release/gates/engine-2026-09-01T06-05-23-502Z.md (live, plugin 0.1.0-alpha.4 @ 96ed6bfd986d, artifact 515a4a47c2711d07, pi 0.84.2, runskein 0.1.1, darwin arm64); ENG-PI-001 round trip and ENG-CAP-001-pi pass, while ENG-FORK-001-pi fails with the error including No session found matching '<id>' and remains the recorded knownDefect; interaction/auth are N/A"
+      },
+      "hosts": "release/gates/host-2026-09-01T06-06-02-327Z.md (live supplementary run, plugin 0.1.0-alpha.4 @ 96ed6bfd986d, artifact 515a4a47c2711d07, darwin arm64, runskein 0.1.1, wrappers codex-acp@1.3.0/claude-agent-acp@0.70.0; CLIs codex 0.149.0, Claude Code 2.1.252, OpenCode 1.18.25, Kimi 0.39.1, all newer than the declared host baselines); HOST-COMMON-001/002/003, HOST-OPENCODE-001 and HOST-ARTIFACT-001 pass; HOST-COMMON-002 records lifecycleOwner=runskein; install cases remain manual-pending and Kimi project scope is N/A."
+    },
+    "knownDefects": {
+      "note": "Capabilities an engine advertises but does not deliver, at the recorded component and Realm versions. The plugin must not claim them, and must not paper over them: the owning case fails rather than reporting N/A. Freshness has two independent dimensions (ADR 0026): `componentVersion` is checked against whichever of the wrapper and `engines` baselines names this entry's own `component`, and `realmVersion` against this file's top-level `realmVersion` \u2014 a move in either forces the entry to be re-examined, and the gate names which one. A baseline the entry does not name is irrelevant to it. `realmVersion` is required: an undated entry is a shape problem, never an entry judged fresh. One hole survives and is deliberate: an entry whose component appears in neither baseline never expires on the component dimension, so it rests on the Realm dimension alone; closing it belongs to ADR 0012 \u00a72.",
+      "entries": [
+        {
+          "id": "ENG-FORK-001-claude-code",
+          "engine": "claude-code",
+          "capability": "session.fork",
+          "component": "claude-agent-acp",
+          "componentVersion": "0.70.0",
+          "realmVersion": "0.1.1",
+          "owner": "engine/wrapper",
+          "summary": "The wrapper advertises capabilities.session.fork and then answers session/fork with Resource not found.",
+          "impact": "session_fork returns ENGINE_ERROR on claude-code. There is no plugin-side workaround: the capability is read from the engine descriptor, so the plugin reports what the engine claims and fails the call the engine fails.",
+          "evidence": "release/gates/engine-2026-09-01T06-04-14-512Z.md (live supplementary run, plugin 0.1.0-alpha.4 @ 96ed6bfd986d, artifact 515a4a47c2711d07, Claude Code 2.1.252 newer than declared host baseline 2.1.238 via claude-agent-acp 0.70.0, runskein 0.1.1, darwin arm64); ENG-FORK-001-claude-code fails with Resource not found while round trip and capability pass; the new wrapper therefore retains this known defect at the upgraded versions"
+        },
+        {
+          "id": "ENG-FORK-001-pi",
+          "engine": "pi",
+          "capability": "session.fork",
+          "component": "pi",
+          "componentVersion": "0.84.2",
+          "realmVersion": "0.1.1",
+          "owner": "engine",
+          "summary": "The descriptor advertises capabilities.session.fork; session/fork then fails with `pi exited (code 1): No session found matching '<id>'` \u2014 the shim asks pi to fork a session pi does not know.",
+          "impact": "session_fork returns ENGINE_ERROR on pi. Everything else in the ENG matrix passes: create, two turns, transcript and close all work.",
+          "evidence": "release/gates/engine-2026-09-01T06-05-23-502Z.md (live, plugin 0.1.0-alpha.4 @ 96ed6bfd986d, artifact 515a4a47c2711d07, pi 0.84.2, runskein 0.1.1, darwin arm64); ENG-PI-001 round trip and ENG-CAP-001-pi pass, while ENG-FORK-001-pi fails with the error including `No session found matching '<id>'`; the fork defect remains, and the upgraded version's round-trip case passes"
+        }
+      ]
+    }
+  },
+  "engines": {
+    "pi": "0.84.2"
+  }
+}

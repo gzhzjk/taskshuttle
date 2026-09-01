@@ -1,0 +1,2088 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://taskshuttle.dev/schemas/tools-1.9.0.json",
+  "title": "TaskShuttle MVP tool contracts",
+  "version": "1.9.0",
+  "$defs": {
+    "EngineId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "not": {
+        "enum": [
+          "auto",
+          "any",
+          "default"
+        ]
+      },
+      "description": "Engine ids are open (ADR 0004): the set comes from Runskein's registry, not from this schema. The pattern is Runskein's own adapter-id rule. Sentinel ids stay rejected because mvp 4.2 requires explicit selection and forbids 'auto'; existence is checked against the live registry at call time."
+    },
+    "Authenticated": {
+      "enum": [
+        true,
+        false,
+        "unknown"
+      ]
+    },
+    "SessionState": {
+      "enum": [
+        "creating",
+        "idle",
+        "busy",
+        "failed",
+        "closing",
+        "closed"
+      ]
+    },
+    "TurnState": {
+      "enum": [
+        "queued",
+        "running",
+        "awaiting-interaction",
+        "completed",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "Priority": {
+      "enum": [
+        "high",
+        "normal",
+        "low"
+      ]
+    },
+    "PermissionMode": {
+      "enum": [
+        "deny",
+        "ask-orchestrator",
+        "allow"
+      ]
+    },
+    "InteractionKind": {
+      "enum": [
+        "permission",
+        "question"
+      ]
+    },
+    "InteractionState": {
+      "enum": [
+        "pending",
+        "responded",
+        "expired",
+        "invalidated"
+      ]
+    },
+    "ErrorCode": {
+      "enum": [
+        "INVALID_ARGUMENT",
+        "NOT_FOUND",
+        "SESSION_UNAVAILABLE",
+        "CONFLICT",
+        "GONE",
+        "LIMIT_EXCEEDED",
+        "NOT_SUPPORTED",
+        "TURN_TIMEOUT",
+        "INTERACTION_TIMEOUT",
+        "PAYLOAD_TOO_LARGE",
+        "PERMISSION_DENIED",
+        "RECURSION_DENIED",
+        "ENGINE_ERROR",
+        "STORE_ERROR",
+        "INTERNAL"
+      ]
+    },
+    "Cause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "message"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 32,
+          "description": "Runskein's own classification of an engine failure, projected verbatim when it made one and absent when it did not (ADR 0029). Deliberately not an enum: the vocabulary belongs to Runskein and may gain a member in a patch release. Known at the pinned version: 'timeout', 'rate-limit', 'context-exceeded', 'internal'. A consumer must handle an unknown value and an absent one alike; absent is the common case, and a value exceeding the bound is dropped rather than truncated."
+        }
+      }
+    },
+    "ToolError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        },
+        "cause": {
+          "$ref": "#/$defs/Cause"
+        }
+      }
+    },
+    "Annotations": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "enum": [
+              "assistant",
+              "user"
+            ]
+          }
+        },
+        "lastModified": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "priority": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "_meta": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "TextBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "text"
+      ],
+      "properties": {
+        "type": {
+          "const": "text"
+        },
+        "text": {
+          "type": "string"
+        },
+        "annotations": {
+          "$ref": "#/$defs/Annotations"
+        },
+        "_meta": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "ImageBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "mimeType",
+        "data"
+      ],
+      "properties": {
+        "type": {
+          "const": "image"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string",
+          "contentEncoding": "base64"
+        },
+        "uri": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "annotations": {
+          "$ref": "#/$defs/Annotations"
+        },
+        "_meta": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "ResourceLinkBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "uri",
+        "name"
+      ],
+      "properties": {
+        "type": {
+          "const": "resource_link"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mimeType": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "annotations": {
+          "$ref": "#/$defs/Annotations"
+        },
+        "_meta": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "EmbeddedResourceBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "resource"
+      ],
+      "properties": {
+        "type": {
+          "const": "resource"
+        },
+        "resource": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "uri",
+            "text"
+          ],
+          "properties": {
+            "uri": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "mimeType": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "_meta": {
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          }
+        },
+        "annotations": {
+          "$ref": "#/$defs/Annotations"
+        },
+        "_meta": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "PromptBlock": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TextBlock"
+        },
+        {
+          "$ref": "#/$defs/ImageBlock"
+        },
+        {
+          "$ref": "#/$defs/ResourceLinkBlock"
+        },
+        {
+          "$ref": "#/$defs/EmbeddedResourceBlock"
+        }
+      ]
+    },
+    "WorkerCapabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "loadSession",
+        "session",
+        "prompt",
+        "mcp",
+        "providers"
+      ],
+      "properties": {
+        "loadSession": {
+          "type": "boolean"
+        },
+        "session": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "prompt": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "mcp": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "providers": {
+          "type": "boolean"
+        }
+      }
+    },
+    "SelectOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "name"
+      ],
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "SelectGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "options"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SelectOption"
+          }
+        }
+      }
+    },
+    "ConfigOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "select",
+            "boolean"
+          ]
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/SelectOption"
+              },
+              {
+                "$ref": "#/$defs/SelectGroup"
+              }
+            ]
+          }
+        },
+        "currentValue": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "settable": {
+          "enum": [
+            "session",
+            "creation"
+          ],
+          "description": "When the option may be written. Absent means 'session' (creation and any time after). 'creation' marks an adapter-declared option the engine accepts only inside session/new; Runskein 0.1.1's Claude adapter exposes its thinking option as a normal engine config value instead."
+        }
+      }
+    },
+    "NamedDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "ProviderInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "protocols",
+        "required"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "protocols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "current": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "apiType",
+            "baseUrl"
+          ],
+          "properties": {
+            "apiType": {
+              "type": "string"
+            },
+            "baseUrl": {
+              "type": "string"
+            }
+          }
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "WorkerSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine",
+        "installed",
+        "authenticated",
+        "available",
+        "verification",
+        "usable"
+      ],
+      "properties": {
+        "engine": {
+          "$ref": "#/$defs/EngineId"
+        },
+        "installed": {
+          "type": "boolean"
+        },
+        "authenticated": {
+          "$ref": "#/$defs/Authenticated"
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "verification": {
+          "enum": [
+            "verified",
+            "unverified",
+            "unknown"
+          ],
+          "description": "Whether the live ENG matrix has been run. 'unknown' means no record, which is not a failed run."
+        },
+        "usable": {
+          "type": "boolean",
+          "description": "Whether session_create accepts this engine: frozen by mvp 4.2, verified, or admitted by allowUnverifiedEngines."
+        },
+        "requirements": {
+          "$ref": "#/$defs/Requirements"
+        },
+        "version": {
+          "type": "string"
+        },
+        "hint": {
+          "type": "string"
+        }
+      }
+    },
+    "WorkerDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine",
+        "installed",
+        "authenticated",
+        "available",
+        "capabilities",
+        "configOptions",
+        "source",
+        "verification",
+        "usable"
+      ],
+      "properties": {
+        "engine": {
+          "$ref": "#/$defs/EngineId"
+        },
+        "installed": {
+          "type": "boolean"
+        },
+        "authenticated": {
+          "$ref": "#/$defs/Authenticated"
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "verification": {
+          "enum": [
+            "verified",
+            "unverified",
+            "unknown"
+          ],
+          "description": "Whether the live ENG matrix has been run. 'unknown' means no record, which is not a failed run."
+        },
+        "usable": {
+          "type": "boolean",
+          "description": "Whether session_create accepts this engine: frozen by mvp 4.2, verified, or admitted by allowUnverifiedEngines."
+        },
+        "version": {
+          "type": "string"
+        },
+        "hint": {
+          "type": "string"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/WorkerCapabilities"
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProviderInfo"
+          }
+        },
+        "modes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NamedDescriptor"
+          }
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NamedDescriptor"
+          }
+        },
+        "currentModel": {
+          "type": "string"
+        },
+        "configOptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConfigOption"
+          }
+        },
+        "source": {
+          "enum": [
+            "probe",
+            "hints"
+          ]
+        }
+      }
+    },
+    "Usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "type": "number",
+          "minimum": 0
+        },
+        "output": {
+          "type": "number",
+          "minimum": 0
+        },
+        "total": {
+          "type": "number",
+          "minimum": 0
+        },
+        "uncached": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cacheRead": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cacheCreation": {
+          "type": "number",
+          "minimum": 0
+        },
+        "thought": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "UsageSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "type": "number",
+          "minimum": 0
+        },
+        "output": {
+          "type": "number",
+          "minimum": 0
+        },
+        "total": {
+          "type": "number",
+          "minimum": 0
+        },
+        "uncached": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cacheRead": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cacheCreation": {
+          "type": "number",
+          "minimum": 0
+        },
+        "thought": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string"
+        }
+      }
+    },
+    "ConfigPatch": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "boolean"
+        ]
+      }
+    },
+    "ConfigObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "source",
+        "observedAt"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "source": {
+          "enum": [
+            "session/new",
+            "session/resume",
+            "session/load",
+            "current_mode_update",
+            "config_option_update"
+          ]
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "engineOptionId": {
+          "type": "string"
+        }
+      },
+      "description": "One config key as the engine reported it (ADR 0020). Runskein gives observedAt as epoch milliseconds; the tool face converts it to ISO 8601 so a single response never carries two time representations."
+    },
+    "Session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessionId",
+        "engine",
+        "cwd",
+        "permissionMode",
+        "mcpServerIds",
+        "state",
+        "createdAt"
+      ],
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "engine": {
+          "$ref": "#/$defs/EngineId"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "cwd": {
+          "type": "string",
+          "minLength": 1
+        },
+        "systemInstructions": {
+          "type": "string"
+        },
+        "permissionMode": {
+          "$ref": "#/$defs/PermissionMode"
+        },
+        "mcpServerIds": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "config": {
+          "$ref": "#/$defs/ConfigPatch"
+        },
+        "state": {
+          "$ref": "#/$defs/SessionState"
+        },
+        "activeTurnId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "closedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "failure": {
+          "$ref": "#/$defs/ToolError"
+        },
+        "usage": {
+          "$ref": "#/$defs/UsageSummary"
+        },
+        "observedConfig": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ConfigObservation"
+          },
+          "description": "What the engine reported it is running on, parallel to config and never merged with it (ADR 0020). An absent key means the engine did not say: it does not mean the value is unset, and it must not be read as the engine agreeing with config. The plugin never copies config into this map to fill a gap."
+        }
+      }
+    },
+    "Turn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turnId",
+        "sessionId",
+        "engine",
+        "priority",
+        "state",
+        "enqueuedAt",
+        "pendingPermissionCount",
+        "pendingQuestionCount",
+        "pendingInteractionIds"
+      ],
+      "properties": {
+        "turnId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "engine": {
+          "$ref": "#/$defs/EngineId"
+        },
+        "priority": {
+          "$ref": "#/$defs/Priority"
+        },
+        "state": {
+          "$ref": "#/$defs/TurnState"
+        },
+        "enqueuedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finishedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "pendingPermissionCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pendingQuestionCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pendingInteractionIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "fromSeq": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "throughSeq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "finalText": {
+          "type": "string"
+        },
+        "stopReason": {
+          "type": "string"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        },
+        "error": {
+          "$ref": "#/$defs/ToolError"
+        }
+      }
+    },
+    "ToolCallLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "line": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "_meta": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "PermissionOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "optionId",
+        "name",
+        "kind"
+      ],
+      "properties": {
+        "optionId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "allow_once",
+            "allow_always",
+            "reject_once",
+            "reject_always"
+          ]
+        },
+        "_meta": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "QuestionOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "Interaction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "interactionId",
+            "turnId",
+            "sessionId",
+            "kind",
+            "state",
+            "createdAt",
+            "payload"
+          ],
+          "properties": {
+            "interactionId": {
+              "type": "string"
+            },
+            "turnId": {
+              "type": "string"
+            },
+            "sessionId": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "permission"
+            },
+            "state": {
+              "$ref": "#/$defs/InteractionState"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expiresAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sessionId",
+                "engineId",
+                "tool",
+                "input",
+                "options"
+              ],
+              "properties": {
+                "sessionId": {
+                  "type": "string"
+                },
+                "engineId": {
+                  "type": "string"
+                },
+                "tool": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "read",
+                    "edit",
+                    "delete",
+                    "move",
+                    "search",
+                    "execute",
+                    "think",
+                    "fetch",
+                    "switch_mode",
+                    "other"
+                  ]
+                },
+                "input": true,
+                "locations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/ToolCallLocation"
+                  }
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/PermissionOption"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "interactionId",
+            "turnId",
+            "sessionId",
+            "kind",
+            "state",
+            "createdAt",
+            "payload"
+          ],
+          "properties": {
+            "interactionId": {
+              "type": "string"
+            },
+            "turnId": {
+              "type": "string"
+            },
+            "sessionId": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "question"
+            },
+            "state": {
+              "$ref": "#/$defs/InteractionState"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expiresAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "requestId",
+                "sessionId",
+                "engineId",
+                "question"
+              ],
+              "properties": {
+                "requestId": {
+                  "type": "string"
+                },
+                "sessionId": {
+                  "type": "string"
+                },
+                "engineId": {
+                  "type": "string"
+                },
+                "question": {
+                  "type": "string"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/QuestionOption"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "TranscriptMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessionId",
+        "engine",
+        "kind",
+        "state",
+        "createdAt",
+        "highWatermark"
+      ],
+      "properties": {
+        "sessionId": {
+          "type": "string"
+        },
+        "engine": {
+          "$ref": "#/$defs/EngineId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "live",
+            "archive"
+          ]
+        },
+        "state": {
+          "enum": [
+            "creating",
+            "idle",
+            "busy",
+            "failed",
+            "closing",
+            "closed",
+            "aborted"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "closedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "recoveredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "highWatermark": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "TranscriptEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seq",
+        "ts",
+        "sessionId",
+        "engineId",
+        "update"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "type": "number"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "engineId": {
+          "$ref": "#/$defs/EngineId"
+        },
+        "update": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "sessionUpdate"
+          ],
+          "properties": {
+            "sessionUpdate": {
+              "type": "string"
+            }
+          }
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        }
+      }
+    },
+    "CapabilityPath": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9]*(\\.[a-zA-Z][a-zA-Z0-9]*)?$",
+      "description": "A dotted capability path as worker_describe reports it (loadSession, session.fork). Whether a path exists is checked against the registered engines at call time."
+    },
+    "Requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "met",
+        "unmet",
+        "defective",
+        "satisfied"
+      ],
+      "properties": {
+        "met": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CapabilityPath"
+          }
+        },
+        "unmet": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CapabilityPath"
+          }
+        },
+        "defective": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CapabilityPath"
+          },
+          "description": "Advertised but recorded broken in verification.knownDefects. Kept apart from unmet: an engine that claims a capability and fails it is a different situation from one that never claimed it."
+        },
+        "satisfied": {
+          "type": "boolean"
+        }
+      },
+      "description": "Present only when workers_list was called with `requires` (ADR 0005)."
+    }
+  },
+  "tools": {
+    "workers_list": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "rescan": {
+            "type": "boolean",
+            "default": false
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/CapabilityPath"
+            },
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true,
+            "description": "Capability paths to measure each engine against. Annotates the response; never removes an engine from it."
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workers",
+          "instanceId"
+        ],
+        "properties": {
+          "workers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/WorkerSummary"
+            }
+          },
+          "instanceId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The id of the plugin instance that answered this call (ADR 0043). Opaque: no format is promised. It names the responder, not an engine, which is why it is top-level rather than a field of workers[]. It is not the console's port and confers no access."
+          }
+        }
+      }
+    },
+    "worker_describe": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "engine"
+        ],
+        "properties": {
+          "engine": {
+            "$ref": "#/$defs/EngineId"
+          },
+          "rescan": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/WorkerDescriptor"
+      }
+    },
+    "session_create": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "engine",
+          "cwd"
+        ],
+        "properties": {
+          "engine": {
+            "$ref": "#/$defs/EngineId"
+          },
+          "cwd": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "systemInstructions": {
+            "type": "string"
+          },
+          "permissionMode": {
+            "$ref": "#/$defs/PermissionMode",
+            "default": "allow"
+          },
+          "mcpServerIds": {
+            "type": "array",
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "config": {
+            "$ref": "#/$defs/ConfigPatch"
+          },
+          "profile": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Names a worker-default profile declared in <data-root>/<project-key>/config.json (ADR 0018). Its config patch fills only keys the caller did not give in `config`; an unknown profile — including when no default file exists for this project — fails INVALID_ARGUMENT. Absent, the file's defaultProfile applies; no file and no defaultProfile means no fill."
+          }
+        }
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/Session"
+      }
+    },
+    "session_list": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "engine": {
+            "$ref": "#/$defs/EngineId"
+          },
+          "state": {
+            "$ref": "#/$defs/SessionState"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessions"
+        ],
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Session"
+            }
+          }
+        }
+      }
+    },
+    "session_get": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/Session"
+      }
+    },
+    "session_configure": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId"
+        ],
+        "minProperties": 2,
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "permissionMode": {
+            "$ref": "#/$defs/PermissionMode"
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/ConfigPatch"
+              }
+            ],
+            "minProperties": 1
+          }
+        }
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/Session"
+      }
+    },
+    "session_fork": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/Session"
+      }
+    },
+    "session_close": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/Session"
+      }
+    },
+    "turn_start": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId",
+          "prompt"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prompt": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/PromptBlock"
+            }
+          },
+          "priority": {
+            "$ref": "#/$defs/Priority",
+            "default": "normal"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 86400000
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "turnId",
+          "status"
+        ],
+        "properties": {
+          "turnId": {
+            "type": "string"
+          },
+          "status": {
+            "const": "queued"
+          }
+        }
+      }
+    },
+    "turn_list": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "engine": {
+            "$ref": "#/$defs/EngineId"
+          },
+          "state": {
+            "$ref": "#/$defs/TurnState"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "turns"
+        ],
+        "properties": {
+          "turns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Turn"
+            }
+          }
+        }
+      }
+    },
+    "turn_get": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "turnId"
+        ],
+        "properties": {
+          "turnId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/Turn"
+      }
+    },
+    "turn_cancel": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "turnId"
+        ],
+        "properties": {
+          "turnId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/Turn"
+      }
+    },
+    "transcript_list": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "engine": {
+            "$ref": "#/$defs/EngineId"
+          },
+          "kind": {
+            "enum": [
+              "live",
+              "archive"
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "transcripts"
+        ],
+        "properties": {
+          "transcripts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/TranscriptMetadata"
+            }
+          }
+        }
+      }
+    },
+    "transcript_read": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "afterSeq": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 100
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "events",
+          "nextSeq",
+          "highWatermark",
+          "hasMore"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/TranscriptEvent"
+            }
+          },
+          "nextSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "highWatermark": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "transcript_event_get": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId",
+          "seq",
+          "offset"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maxBytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 262144,
+            "default": 262144
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "encoding",
+          "offset",
+          "totalBytes",
+          "data",
+          "sha256"
+        ],
+        "properties": {
+          "encoding": {
+            "const": "base64"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalBytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "data": {
+            "type": "string",
+            "contentEncoding": "base64"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "transcript_delete": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId",
+          "deleted"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "deleted": {
+            "const": true
+          }
+        }
+      }
+    },
+    "interaction_list": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "turnId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/InteractionKind"
+          },
+          "state": {
+            "$ref": "#/$defs/InteractionState",
+            "default": "pending"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "interactions"
+        ],
+        "properties": {
+          "interactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Interaction"
+            }
+          }
+        }
+      }
+    },
+    "interaction_respond": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "interactionId",
+          "response"
+        ],
+        "properties": {
+          "interactionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "response": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "optionId"
+                ],
+                "properties": {
+                  "optionId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "outcome"
+                ],
+                "properties": {
+                  "outcome": {
+                    "enum": [
+                      "allow",
+                      "deny"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "interactionId",
+          "state"
+        ],
+        "properties": {
+          "interactionId": {
+            "type": "string"
+          },
+          "state": {
+            "const": "responded"
+          }
+        }
+      }
+    },
+    "anchor": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "The orchestrator's plan, stored verbatim and never parsed by the plugin (ADR 0016). Omit to read; give it to replace the anchor wholesale. At most 16384 UTF-8 bytes, measured with Buffer.byteLength and deliberately not expressed as maxLength here: maxLength counts code points, which would admit roughly three times the payload for Chinese text. Over-limit input is rejected with INVALID_ARGUMENT, never truncated. Nothing in the blob is filtered, so it must not carry secrets."
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "turnsSinceUpdate"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "turnsSinceUpdate": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Turns dispatched since the anchor was last written, from a monotonic counter rather than the turn records, whose retention the registry does not guarantee. 0 when no anchor exists; the caller tells the cases apart by whether content is present."
+          }
+        }
+      }
+    },
+    "project_init": {
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "refresh": {
+            "type": "boolean",
+            "description": "Only consulted when the project file already exists and is valid: omitted or false returns it untouched; true performs a merge-regeneration that appends engineConfig sections for engines installed now but not yet declared — no existing key is rewritten or deleted. An existing invalid file is a field-level error either way: never returned, never overwritten. No path parameter exists; where and what to write is decided plugin-side."
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "created",
+          "content",
+          "enginesIncluded",
+          "enginesOmitted",
+          "console"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Absolute path of the project's worker-defaults file, <data-root>/<project-key>/config.json. project-key is derived from the host working directory once at boot, so the path carries no caller-controlled component."
+          },
+          "created": {
+            "type": "boolean",
+            "description": "True when this call wrote the file (generation or merge-regeneration); false when an existing valid file was returned untouched."
+          },
+          "content": {
+            "type": "string",
+            "description": "The file's full content, including a pre-existing file the user has edited — a deliberate widening of the read-side leak discipline, bounded to this tool's output (ADR 0019 amends ADR 0018). The content is template-level. An existing file over 64 KiB (Buffer.byteLength) is treated as invalid: field-level error, nothing returned or written."
+          },
+          "enginesIncluded": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/EngineId"
+            },
+            "uniqueItems": true,
+            "description": "Engines that have an engineConfig section in the returned content. Together with enginesOmitted this describes the returned content regardless of created, so an installed-but-undeclared engine shows up here only after a refresh."
+          },
+          "enginesOmitted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/EngineId"
+            },
+            "uniqueItems": true,
+            "description": "Engines the live registry knows right now (the tool rescans before generating) that have no section in the returned content — the signal to consider refresh. Uninstalled engines appear here and never in the file."
+          },
+          "console": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "started",
+                  "already-running",
+                  "start-failed",
+                  "disabled",
+                  "withheld"
+                ],
+                "description": "Outcome of this call's start attempt — a bounded liveness disclosure bundled into the mutation, the one carve-out ADR 0019 grants to ADR 0003's no-tool-mentions-the-console rule. Conditions can hold at once, so the order is fixed (ADR 0031): a delegated instance never reaches this field because the tool is refused; then 'already-running', which outranks the veto because the veto governs this start and not whether a console exists; then 'disabled', whose one cause is the install surface's console.allowInitStart being false ('enabled: false' keeps its boot-time meaning only and does not block init); then 'withheld', meaning the instance could not establish that it is a root and the console fails closed on that evidence while the tools keep serving; otherwise 'started', or 'start-failed' if the listener genuinely failed. 'withheld' is not 'start-failed': nothing failed. A start failure never fails the call itself; the file result stands."
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65535,
+                "description": "Loopback port where a listener exists after the attempt; absent on start-failed, disabled and withheld. Opening the console stays with the taskshuttle CLI's console open command, which picks the right instance and confirms the listener before opening it. Since ADR 0031 the console has no access token, and this port is what reaches it."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

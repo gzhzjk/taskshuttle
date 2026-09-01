@@ -1,0 +1,51 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx scripts/build-workspace.ts",
+    "dev": "tsx packages/plugin/src/cli.ts",
+    "test": "node scripts/check-test-collection.mjs && vitest run",
+    "typecheck": "tsc --build --pretty false",
+    "artifact-gate": "tsx scripts/artifact-gate.ts",
+    "gen:ui-assets": "tsx scripts/gen-ui-assets.ts",
+    "gen:notice": "tsx scripts/gen-notice.ts",
+    "ci:schema": "vitest run test/schemas.test.ts test/error-mapper.test.ts test/core/tool-facade.test.ts test/server.test.ts",
+    "ci:core": "vitest run test/core/registry.test.ts test/core/scheduler.test.ts test/core/mutation-gate.test.ts test/core/state-machine.test.ts test/core/interaction-broker.test.ts test/core/runtime.test.ts test/core/runtime-session.test.ts test/task-manager.test.ts",
+    "ci:transcript": "vitest run test/store/plugin-transcript-store.test.ts",
+    "ci:security": "vitest run test/core/security-policy.test.ts test/core/plugin-config.test.ts test/core/logger.test.ts test/core/engine-support.test.ts test/core/engine-admission.test.ts",
+    "ci:lifecycle": "vitest run test/core/lifecycle.test.ts test/core/orphans.test.ts",
+    "ci:artifact": "pnpm build && vitest run test/core/host-artifacts.test.ts test/core/known-defects.test.ts && pnpm artifact-gate",
+    "ci:live-harness": "vitest run test/live",
+    "release:hosts": "tsx scripts/live-host.ts",
+    "release:engines": "tsx scripts/live-engine.ts",
+    "release:workflow": "tsx scripts/workflow-gate.ts",
+    "release:console": "tsx scripts/live-console.ts",
+    "docs:translations:check": "node scripts/verify-published-documents.mjs",
+    "deploy": "tsx scripts/deploy.ts",
+    "check": "pnpm typecheck && pnpm build && pnpm test && pnpm artifact-gate"
+  },
+  "devDependencies": {
+    "@taskshuttle/core": "workspace:0.1.0",
+    "@taskshuttle/host-kit": "workspace:0.1.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@runskein/adapter-pi": "0.1.1",
+    "@runskein/core": "0.1.1",
+    "@runskein/testkit": "0.1.1",
+    "@types/node": "^22.15.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "ajv": "^8.20.0",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^20.11.6",
+    "runskein": "0.1.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vitest": "^2.1.9",
+    "zod": "^4.4.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.9"
+}

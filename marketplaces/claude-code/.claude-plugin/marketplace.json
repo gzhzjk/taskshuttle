@@ -1,0 +1,11 @@
+{
+  "name": "taskshuttle",
+  "owner": { "name": "TaskShuttle" },
+  "plugins": [
+    {
+      "name": "taskshuttle",
+      "source": "./plugins/taskshuttle",
+      "description": "Delegate bounded coding work to explicit coding-agent workers."
+    }
+  ]
+}

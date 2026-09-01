@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/nanny.js"],
+            "timeout": 5,
+            "statusMessage": "Checking for unfinished worker turns"
+          }
+        ]
+      }
+    ]
+  }
+}

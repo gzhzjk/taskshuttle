@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "codex",
+  "kind": "marketplace-plugin",
+  "baseline": "0.148.0",
+  "scopes": ["user", "project"],
+  "kits": ["stdio-mcp", "shared-skill", "stop-hook", "marketplace"],
+  "driver": "driver.ts",
+  "versionedManifest": ".codex-plugin/plugin.json",
+  "artifacts": [
+    { "role": "plugin-manifest", "path": ".codex-plugin/plugin.json", "generated": false },
+    { "role": "mcp-config", "path": ".mcp.json", "generated": false },
+    { "role": "stop-hook", "path": "hooks/hooks.json", "generated": false },
+    { "role": "license", "path": "LICENSE", "generated": true },
+    { "role": "notice", "path": "NOTICE", "generated": true },
+    { "role": "runtime-bundle", "path": "dist", "generated": true },
+    { "role": "skills", "path": "skills", "generated": true }
+  ]
+}

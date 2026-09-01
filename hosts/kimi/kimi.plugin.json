@@ -1,0 +1,10 @@
+{
+  "name": "taskshuttle",
+  "version": "0.1.0",
+  "description": "Delegate bounded coding tasks to explicit coding-agent workers.",
+  "scope": "user",
+  "mcpServers": { "taskshuttle": { "command": "taskshuttle-launch", "args": [] } },
+  "hooks": [
+    { "event": "Stop", "command": "node \"$KIMI_PLUGIN_ROOT/dist/nanny.js\"", "timeout": 5 }
+  ]
+}

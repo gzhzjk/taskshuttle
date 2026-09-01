@@ -1,0 +1,9 @@
+{
+  "name": "taskshuttle",
+  "version": "0.1.0",
+  "description": "Delegate bounded coding tasks to explicit coding-agent workers.",
+  "author": { "name": "TaskShuttle" },
+  "skills": "./skills/",
+  "interface": { "displayName": "TaskShuttle", "shortDescription": "Delegate to coding-agent workers.", "longDescription": "Use Codex as orchestrator while coding-agent workers implement or review bounded tasks.", "developerName": "TaskShuttle", "category": "Productivity", "capabilities": [], "defaultPrompt": "Delegate a bounded coding task to an explicit coding-agent worker." },
+  "mcpServers": "./.mcp.json"
+}

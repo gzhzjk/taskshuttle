@@ -1,0 +1,8 @@
+{
+  "name": "taskshuttle",
+  "version": "0.1.0",
+  "description": "Delegate bounded coding tasks to explicit coding-agent workers.",
+  "author": { "name": "TaskShuttle" },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

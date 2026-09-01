@@ -1,0 +1,31 @@
+{
+  "source": "Phase 0 ownership inventory, narrowed to the Core-destined legacy files for Phase 4.2",
+  "phase0AnchorCount": 13,
+  "phase0CoreDestined": [
+    { "source": "src/core/anchor-store.ts", "movedTo": "packages/core/src/anchor-store.ts" },
+    { "source": "src/core/delegation-evidence.ts", "movedTo": "packages/core/src/delegation-evidence.ts" },
+    { "source": "src/core/engine-support.ts", "movedTo": "packages/core/src/engine-support.ts", "split": true, "pluginRemainder": "packages/plugin/src/engine-support.ts" },
+    { "source": "src/core/interaction-broker.ts", "movedTo": "packages/core/src/interaction-broker.ts" },
+    { "source": "src/core/logger.ts", "movedTo": "packages/core/src/logger.ts", "split": true, "pluginRemainder": "packages/plugin/src/logger.ts" },
+    { "source": "src/core/mutation-gate.ts", "movedTo": "packages/core/src/mutation-gate.ts" },
+    { "source": "src/core/nanny-snapshot.ts", "movedTo": "packages/core/src/nanny-snapshot.ts" },
+    { "source": "src/core/project-config.ts", "movedTo": "packages/core/src/project-config.ts" },
+    { "source": "src/core/registry.ts", "movedTo": "packages/core/src/registry.ts" },
+    { "source": "src/core/scheduler.ts", "movedTo": "packages/core/src/scheduler.ts" },
+    { "source": "src/core/security-policy.ts", "movedTo": "packages/core/src/security-policy.ts" },
+    { "source": "src/core/state-machine.ts", "movedTo": "packages/core/src/state-machine.ts" },
+    { "source": "src/core/transcript-page.ts", "movedTo": "packages/core/src/transcript-page.ts", "split": true, "pluginRemainder": "packages/plugin/src/transcript-page.ts" }
+  ],
+  "ownerCorrections": [
+    { "source": "src/core/anchor-store.ts", "owner": "plugin", "destination": "packages/plugin/src/anchor-store.ts" },
+    { "source": "src/core/delegation-evidence.ts", "owner": "plugin", "destination": "packages/plugin/src/delegation-evidence.ts" },
+    { "source": "src/core/engine-support.ts", "owner": "plugin", "destination": "packages/plugin/src/engine-support.ts" },
+    { "source": "src/core/interaction-broker.ts", "owner": "plugin", "destination": "packages/plugin/src/interaction-broker.ts" },
+    { "source": "src/core/logger.ts", "owner": "plugin", "destination": "packages/plugin/src/logger.ts" },
+    { "source": "src/core/nanny-snapshot.ts", "owner": "plugin", "destination": "packages/plugin/src/nanny-snapshot.ts" },
+    { "source": "src/core/project-config.ts", "owner": "plugin", "destination": "packages/plugin/src/project-config.ts" },
+    { "source": "src/core/security-policy.ts", "owner": "plugin", "destination": "packages/plugin/src/security-policy.ts" },
+    { "source": "src/core/transcript-page.ts", "owner": "plugin", "destination": "packages/plugin/src/transcript-page.ts" }
+  ],
+  "pendingFiles": []
+}

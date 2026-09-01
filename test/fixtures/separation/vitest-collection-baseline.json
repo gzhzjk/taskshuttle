@@ -1,0 +1,251 @@
+{
+  "source": "Phase 0 vitest-collection-baseline.json",
+  "fileCount": 73,
+  "caseCount": 975,
+  "allowedFileCount": 8,
+  "allowedCaseCount": 60,
+  "filesSha256": "b026a66a8f21b54abbc5eb1f67ca0bddec7a305dae85b14593a4524058417041",
+  "casesSha256": "b372346a004acf155c9c0956c61c6e72bcfc7eef99e0a12e7efa2817c75a1bb2",
+  "allowedAdditions": [
+    {
+      "file": "test/core/prompt-capability-gate.test.ts",
+      "name": "prompt capability gates and the ACP resource-link baseline > INV-005: an image block without prompt.image is refused, naming the capability"
+    },
+    {
+      "file": "test/core/prompt-capability-gate.test.ts",
+      "name": "prompt capability gates and the ACP resource-link baseline > INV-006: a resource link is baseline with embeddedContext absent, false, or true"
+    },
+    {
+      "file": "test/core/prompt-capability-gate.test.ts",
+      "name": "prompt capability gates and the ACP resource-link baseline > INV-013: an embedded resource without prompt.embeddedContext is refused, naming the capability"
+    },
+    {
+      "file": "test/core/prompt-capability-gate.test.ts",
+      "name": "prompt capability gates and the ACP resource-link baseline > INV-013: with the capability, the block reaches Runskein byte-identical and its uri is never touched"
+    },
+    {
+      "file": "test/tool-schema-catalog.test.ts",
+      "name": "the published catalog and the runtime schema agree on the prompt block union > publishes exactly the block types the runtime accepts"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects console"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects environment"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects filesystem"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects host"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects mcp"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects plugin"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects process"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects release"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects runskein"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects workspace"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects unallowlisted Node built-ins but permits the reviewed pure list"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001: Core source uses only the allow-listed domain boundary"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-002: emitted Core declarations and exports contain no Plugin/MCP/Runskein types"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-002 mutation rejects a leaked type in a non-entry declaration"
+    },
+    {
+      "file": "test/separation/cwd-normalization.test.ts",
+      "name": "Phase 2 cwd adapter gate > SEC-CWD-029: Plugin normalizes cwd before Core reservation"
+    },
+    {
+      "file": "test/separation/host-boundary.test.ts",
+      "name": "Phase 2 host configuration gates > HOSTCFG-001: discovers and validates exactly the four supported host manifests"
+    },
+    {
+      "file": "test/separation/host-boundary.test.ts",
+      "name": "Phase 2 host configuration gates > HOSTCFG-001: rejects malformed, unknown-version, mismatched, duplicate, missing, symlink, and escaping fixtures"
+    },
+    {
+      "file": "test/separation/host-boundary.test.ts",
+      "name": "Phase 2 host configuration gates > HOSTCFG-002: every real host-kit source has no host-specific dependency branches"
+    },
+    {
+      "file": "test/separation/host-boundary.test.ts",
+      "name": "Phase 2 host configuration gates > HOSTCFG-002: synthetic hosts can claim each kit capability without shell/effect escape"
+    },
+    {
+      "file": "test/separation/host-boundary.test.ts",
+      "name": "Phase 2 host configuration gates > HOSTCFG-003: production host build receives one immutable Plugin bundle"
+    },
+    {
+      "file": "test/separation/host-boundary.test.ts",
+      "name": "Phase 2 host configuration gates > HOSTCFG-003: the production staging orchestrator builds once and verifies every isolated host"
+    },
+    {
+      "file": "test/separation/host-boundary.test.ts",
+      "name": "Phase 2 host configuration gates > HOSTCFG-004: a valid fifth host is discovered but refused by support alignment"
+    },
+    {
+      "file": "test/separation/rollback-contract.test.ts",
+      "name": "Phase 2 rollback gate > STO-018: committed manifest pins the exact pre-separation bytes and recipe"
+    },
+    {
+      "file": "test/separation/rollback-contract.test.ts",
+      "name": "Phase 2 rollback gate > STO-018: old artifact recovery is not replaced by a direct archive read"
+    },
+    {
+      "file": "test/separation/rollback-contract.test.ts",
+      "name": "Phase 2 rollback gate > STO-018: a candidate with wrong bytes is rejected before recovery"
+    },
+    {
+      "file": "packages/core/test/contracts.test.ts",
+      "name": "@taskshuttle/core contracts > constructs from injected ports without reading process state"
+    },
+    {
+      "file": "packages/core/test/contracts.test.ts",
+      "name": "@taskshuttle/core contracts > paginates opaque events with an exclusive cursor and upper bound"
+    },
+    {
+      "file": "packages/core/test/contracts.test.ts",
+      "name": "@taskshuttle/core contracts > returns canonical identity when one event exceeds the byte budget"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001: transitional Core ownership is an explicit shrinking inventory"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects dependency"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-002 mutations reject Plugin and MCP declaration references"
+    },
+    {
+      "file": "packages/plugin/test/runskein-adapter.test.ts",
+      "name": "RunskeinAgentProvider > keeps final cwd verification adjacent to hub.session"
+    },
+    {
+      "file": "packages/plugin/test/runskein-adapter.test.ts",
+      "name": "RunskeinAgentProvider > normalizes provider updates and usage without exposing dependency errors"
+    },
+    {
+      "file": "packages/plugin/test/runskein-adapter.test.ts",
+      "name": "RunskeinAgentProvider > returns a normalized failure and never spawns after cwd verification refuses"
+    },
+    {
+      "file": "packages/core/test/application.test.ts",
+      "name": "@taskshuttle/core application services > creates, forks, configures, and closes through provider-neutral ports"
+    },
+    {
+      "file": "packages/core/test/application.test.ts",
+      "name": "@taskshuttle/core application services > uses Core scheduling and immutable turn projections when an executor is injected"
+    },
+    {
+      "file": "packages/core/test/application.test.ts",
+      "name": "@taskshuttle/core application services > keeps opaque anchor and policy decisions in Core without opening files"
+    },
+    {
+      "file": "packages/core/test/application.test.ts",
+      "name": "@taskshuttle/core application services > retains a failed provider creation as a failed session so the reservation is explicit"
+    },
+    {
+      "file": "packages/core/test/application.test.ts",
+      "name": "@taskshuttle/core application services > joins concurrent closes and drains transcript writes before completing the close"
+    },
+    {
+      "file": "packages/core/test/application.test.ts",
+      "name": "@taskshuttle/core application services > resolves an interaction by Core id without interpreting provider separators"
+    },
+    {
+      "file": "packages/core/test/application.test.ts",
+      "name": "@taskshuttle/core application services > discards a provider refusal proven to precede spawn and makes the reservation reusable"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects plugin re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects mcp re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects runskein re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects filesystem re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects process re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects host re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects console re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects release re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects workspace re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects dependency re-export"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects require"
+    },
+    {
+      "file": "test/separation/architecture-boundary.test.ts",
+      "name": "Phase 2 architecture gates > ARCH-001 mutation rejects dynamic import"
+    },
+    {
+      "file": "test/separation/host-boundary.test.ts",
+      "name": "Phase 2 host configuration gates > HOSTCFG-002: every host deploy driver uses the typed effect context and preserves shared skills"
+    },
+    {
+      "file": "test/core/host-artifacts.test.ts",
+      "name": "host artifacts > validates the public package dist rather than a stale root compatibility mirror"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "name": "taskshuttle",
+  "version": "0.1.0",
+  "description": "TaskShuttle delegates coding tasks to Codex, Claude Code, OpenCode, and other coding-agent workers over MCP.",
+  "keywords": [
+    "mcp",
+    "agent",
+    "delegation",
+    "codex",
+    "claude-code",
+    "opencode",
+    "coding-agent"
+  ],
+  "homepage": "https://github.com/gzhzjk/taskshuttle#readme",
+  "bugs": {
+    "url": "https://github.com/gzhzjk/taskshuttle/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gzhzjk/taskshuttle.git",
+    "directory": "packages/plugin"
+  },
+  "author": "gzhzjk",
+  "type": "module",
+  "bin": {
+    "taskshuttle": "dist/launch.js",
+    "taskshuttle-launch": "dist/launch.js"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "hosts",
+    "marketplaces",
+    "release",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsx ../../scripts/build-plugin-package.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@taskshuttle/core": "workspace:0.1.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "runskein": "0.1.1",
+    "zod": "^4.4.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}

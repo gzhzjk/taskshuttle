@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "opencode",
+  "kind": "stdio-config",
+  "baseline": "1.18.19",
+  "scopes": ["user", "project"],
+  "kits": ["stdio-mcp", "shared-skill"],
+  "driver": "driver.ts",
+  "artifacts": [
+    { "role": "mcp-config", "path": ".mcp.json", "generated": false },
+    { "role": "license", "path": "LICENSE", "generated": true },
+    { "role": "notice", "path": "NOTICE", "generated": true },
+    { "role": "runtime-bundle", "path": "dist", "generated": true },
+    { "role": "skills", "path": "skills", "generated": true }
+  ]
+}

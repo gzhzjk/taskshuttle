@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "package": "taskshuttle",
+  "version": "0.1.0-alpha.3",
+  "sourceCommit": "49cb942412ae623235497d37ff9f4e5d6cda2ca1",
+  "byteLength": 27651563,
+  "sha256": "2c512a962ca1ce5acbf86770c41f9eb4ef3238642658de94f1c2595d2d9ea36d",
+  "toolchain": {
+    "node": "22.22.1",
+    "npm": "10.9.4",
+    "pnpm": "9.15.9"
+  },
+  "recipe": "git archive 0.1.0-alpha.3 | tar -x -C $ROLLBACK_SOURCE && pnpm --dir $ROLLBACK_SOURCE install --frozen-lockfile && pnpm --dir $ROLLBACK_SOURCE build && (cd $ROLLBACK_SOURCE && npm pack --pack-destination $ROLLBACK_OUTPUT)",
+  "acceptedSources": ["registry", "cache", "reproducible-rebuild"]
+}

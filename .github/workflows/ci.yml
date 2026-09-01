@@ -1,0 +1,59 @@
+# Verification for contributors. It is not the gate.
+#
+# The maintainers' own CI runs the same suites plus matrices that need real
+# engine accounts, and it is the one that decides whether a change lands; when
+# this workflow is green and that one is red, that one wins. CONTRIBUTING.md
+# says so in those words, and so does ADR 0053 decision 7.
+#
+# It can run at all because everything below is hermetic: Runskein's packages are
+# anonymously readable on the public registry, and the three simulated gates
+# drive its scripted ACP agent rather than a real CLI. No account, no token, no
+# credential.
+#
+# Two steps are deliberately absent. `gate-hosts` drives the real engine CLIs and
+# fetches an ACP wrapper over npm, so on a hosted runner it is either all-N/A or
+# environmentally red — a badge nobody can fix teaches contributors to ignore the
+# badge. `spec-gate` reads the frozen specification, which is not part of this
+# repository (ADR 0056); the maintainers run it on their side.
+#
+# macos-latest, not ubuntu: the lifecycle and instance-discovery code reads
+# process state through `ps`, and nothing here has ever been run on Linux.
+# Choosing the cheaper runner would assert a portability claim this project has
+# not tested.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # Before the gates, not merely before publishing: the build produces the
+      # package-local bundle, the staged host trees and the runtime assets that
+      # Runskein loads by path, and several checks read those rather than source.
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm artifact-gate
+      # Simulated: the full plugin path against a scripted agent. A simulated
+      # pass is not an engine pass, and every report says which mode produced it.
+      - run: pnpm release:engines
+      - run: pnpm release:workflow
+      - run: pnpm release:console

@@ -1,0 +1,6 @@
+# Runskein comes from the public npm registry, not from a sibling checkout and not from
+# a vendored copy: the version in package.json plus the lockfile's integrity
+# hash is what states which source was built. See README, "The Realm dependency".
+packages:
+  - .
+  - packages/*
