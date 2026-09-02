@@ -76,10 +76,19 @@ describe('engine admission through the tool facade', () => {
     const listed = await plugin.invoke('workers_list', { rescan: false, requires: ['session.fork'] });
     if (!listed.ok) throw new Error('workers_list failed');
     const pi = listed.output.workers.find((worker) => worker.engine === 'pi');
-    if (pi === undefined) return; // Realm no longer ships it; nothing to assert.
+    if (pi === undefined) return; // Runskein no longer ships it; nothing to assert.
     expect(pi.verification).toBe('verified');
     expect(pi.usable).toBe(true);
-    expect(pi.requirements?.defective).toEqual(['session.fork']);
+    // The claim worth asserting is the one that does not depend on this machine:
+    // a capability a known defect covers is **never reported as met**. Whether
+    // `pi` advertises `session.fork` at all depends on the pi CLI being present
+    // — it is on a maintainer's machine and is not on a hosted runner — so the
+    // capability lands in `defective` there and in `unmet` here, and both are
+    // correct. Asserting `defective` outright made this hermetic test depend on
+    // an installed engine, and it went red on the public CI for that reason.
+    const requirements = pi.requirements;
+    expect(requirements?.met ?? []).not.toContain('session.fork');
+    expect([...(requirements?.defective ?? []), ...(requirements?.unmet ?? [])]).toContain('session.fork');
   });
 
   // The frozen four are authorized by mvp §4.2, not by gate evidence — a matrix

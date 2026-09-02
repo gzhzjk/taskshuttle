@@ -2,10 +2,11 @@ import { readAnchorRecord, anchorPath } from './anchor-store.js';
 import { findLiveInstances, type LiveInstance } from './instance-discovery.js';
 import { readNannySnapshot, nannySnapshotPath, type NannySnapshot } from './nanny-snapshot.js';
 import { resolveDataRoot } from './plugin-config.js';
-import { settleDelegation, type DelegationRecord } from './delegation-evidence.js';
+import { defaultAncestryProbe, settleDelegation, type AncestryProbe, type DelegationRecord } from './delegation-evidence.js';
 import { readDelegationIdentity, type DelegationIdentity } from './security-policy.js';
 import { decide, type NannyHookInput, type NannyState } from './nanny/decide.js';
 import { resolveWorkspace } from './nanny/workspace.js';
+import { selectByHostAncestry } from './nanny/instance-identity.js';
 
 /**
  * The nanny Stop hook (ADR 0015).
@@ -47,29 +48,34 @@ export function normaliseHookInput(raw: unknown): NannyHookInput {
 }
 
 /**
- * Pick the instance this stop belongs to.
+ * Pick the instance this stop belongs to (ADR 0057).
  *
  * Several instances can be alive under one data root, and their anchors are
  * private plans — handing back the wrong one would be worse than handing back
- * none. So: the instance that has a turn running in this workspace, else the
- * only instance if there is exactly one, else nothing.
+ * none. **The answer is an identity, not a directory.** This used to choose the
+ * instance with a turn running in the host's working directory, and a directory
+ * is shared: a worktree open in two hosts at once gave a stopping claude-code
+ * session a codex session's turns, which it could not act on, through the same
+ * selection that hands back an anchor (GZH-82).
+ *
+ * The identity is the host process. A host starts its MCP servers and its hooks
+ * itself, so this hook and the instance serving the same session are siblings
+ * under it — and each instance records which process started it.
+ *
+ * **There is no fallback to "the only live instance."** Being alone on the
+ * machine is not evidence of being the right one: a single instance belonging
+ * to another host session is exactly the case that hands back its anchor.
  *
  * @param instances - live instances with their snapshots already read.
- * @param cwd - the workspace the host stopped in, when it supplied one.
- * @returns the chosen instance, or `undefined` when the answer is ambiguous.
+ * @param options - the hook's own pid and the process-table probe.
+ * @returns the chosen instance, or `undefined` whenever identity could not be
+ *   established — which the caller turns into silence.
  */
-export function selectInstance<T extends { instance: LiveInstance; snapshot: NannySnapshot | undefined }>(
+export async function selectInstance<T extends { instance: LiveInstance; snapshot: NannySnapshot | undefined }>(
   instances: readonly T[],
-  cwd: string | undefined,
-): T | undefined {
-  if (cwd !== undefined) {
-    const owning = instances.filter((entry) => entry.snapshot?.active.some((turn) => turn.cwd === cwd) === true);
-    if (owning.length === 1) return owning[0];
-    // More than one instance running work in the same directory is a real
-    // configuration, and there is no fact here that says which one stopped.
-    if (owning.length > 1) return undefined;
-  }
-  return instances.length === 1 ? instances[0] : undefined;
+  options: { pid: number; probe: AncestryProbe; maxHops?: number },
+): Promise<T | undefined> {
+  return selectByHostAncestry(instances, options);
 }
 
 async function readPayload(stdin: AsyncIterable<unknown>): Promise<unknown> {
@@ -83,6 +89,24 @@ export interface NannyHookOptions {
   readonly stdin?: AsyncIterable<unknown>;
   /** Where the decision goes; the default is the host's pipe. */
   readonly write?: (text: string) => void;
+  /** This process's pid, for the identity walk; injected so tests need no real ancestry. */
+  readonly pid?: number;
+  /** The process-table probe the identity walk reads. */
+  readonly probe?: AncestryProbe;
+  /**
+   * The whole hook's IO budget, in milliseconds; production uses
+   * {@link BUDGET_MS}.
+   *
+   * A seam because the default makes every case that asserts the hook *speaks*
+   * race a real `ps` per ancestry hop: on a loaded machine the walk does not
+   * finish, the verdict is `unavailable`, and the hook falls silent — which is
+   * correct behaviour and a meaningless test result. Two of those cases failed
+   * a release this way (GZH-116). A case that wants the lapse asks for it.
+   *
+   * The clock seam below cannot stand in for this: the deadline is a real
+   * `setTimeout`, so a frozen clock stops the accounting and not the timer.
+   */
+  readonly budgetMs?: number;
   /** Where a kimi block's reason goes; the default is stderr. */
   readonly writeError?: (text: string) => void;
   readonly now?: () => number;
@@ -124,14 +148,14 @@ function blocksByExitCode(env: NodeJS.ProcessEnv, payload: Record<string, unknow
   return looksLikeKimi && kimiEnvironment;
 }
 
-/** Everything that touches the filesystem, so the budget can race the whole of it. */
-async function readState(dataRoot: string, cwd: string | undefined): Promise<NannyState> {
+/** Everything that touches the filesystem and the process table, so the budget can race the whole of it. */
+async function readState(dataRoot: string, identity: { pid: number; probe: AncestryProbe }): Promise<NannyState> {
   const live = await findLiveInstances(dataRoot);
   const withSnapshots = await Promise.all(live.map(async (instance) => ({
     instance,
     snapshot: await readNannySnapshot(nannySnapshotPath(instance.instanceDir)),
   })));
-  const chosen = selectInstance(withSnapshots, cwd);
+  const chosen = await selectInstance(withSnapshots, identity);
   if (chosen === undefined) return {};
   const anchor = await readAnchorRecord(anchorPath(chosen.instance.instanceDir));
   return {
@@ -186,9 +210,10 @@ export async function runNannyHook(options: NannyHookOptions = {}): Promise<numb
   // deadline started before them would hand `readState` a spent budget for time
   // the host took — silence caused by the host being slow, not by our disk.
   const clock = options.now ?? Date.now;
+  const budgetMs = options.budgetMs ?? BUDGET_MS;
   let spent = 0;
   const withinBudget = async <T>(work: Promise<T>, onLapse: T): Promise<T> => {
-    const remaining = BUDGET_MS - spent;
+    const remaining = budgetMs - spent;
     if (remaining <= 0) return onLapse;
     const startedAt = clock();
     try {
@@ -213,7 +238,7 @@ export async function runNannyHook(options: NannyHookOptions = {}): Promise<numb
   // person waits is the walk's real duration. `settleDelegation`'s own budget is
   // what bounds that; this one bounds the decision.
   const verdict = await withinBudget<DelegationRecord>(
-    settleDelegation({ marker, dataRoot, budgetMs: BUDGET_MS }).catch((): DelegationRecord => ({ provenance: 'unavailable' })),
+    settleDelegation({ marker, dataRoot, budgetMs }).catch((): DelegationRecord => ({ provenance: 'unavailable' })),
     { provenance: 'unavailable' },
   );
   if (verdict.provenance !== 'root') return 0;
@@ -223,7 +248,10 @@ export async function runNannyHook(options: NannyHookOptions = {}): Promise<numb
   const raw = normaliseHookInput(payload);
   const resolved = await resolveWorkspace(raw.cwd);
   const input: NannyHookInput = { stopHookActive: raw.stopHookActive, ...(resolved === undefined ? {} : { cwd: resolved }) };
-  const state = await withinBudget<NannyState>(readState(dataRoot, input.cwd).catch(() => ({} as NannyState)), {});
+  // The workspace no longer selects; it only filters which of *this* instance's
+  // turns are worth mentioning, inside `decide`.
+  const identity = { pid: options.pid ?? process.pid, probe: options.probe ?? defaultAncestryProbe };
+  const state = await withinBudget<NannyState>(readState(dataRoot, identity).catch(() => ({} as NannyState)), {});
 
   const decision = decide(input, state, (options.now ?? Date.now)());
   // `block` hands the text to the model as the next turn's input; a note is

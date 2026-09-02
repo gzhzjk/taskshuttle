@@ -2,6 +2,10 @@
 
 English | [简体中文](README.zh-CN.md)
 
+[![ci](https://img.shields.io/github/actions/workflow/status/gzhzjk/taskshuttle/ci.yml?branch=main&label=ci&logo=github)](https://github.com/gzhzjk/taskshuttle/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/taskshuttle?label=npm)](https://www.npmjs.com/package/taskshuttle)
+[![license](https://img.shields.io/npm/l/taskshuttle?label=license)](LICENSE)
+
 TaskShuttle lets the coding agent you already use ask another coding agent to
 do a bounded piece of work. You stay in one conversation: name the worker,
 describe the task, and receive the result back with its transcript.
@@ -18,8 +22,86 @@ agent that fits each task.
 
 ### 1. Install TaskShuttle
 
-The simplest setup builds the plugin and installs every host integration that
-is available on your machine:
+Install the package, then connect the host you use. Have that host's CLI
+installed and logged in first, and restart it — or reload its plugins — once
+you are done.
+
+```bash
+npm install -g taskshuttle
+```
+
+That gives you the `taskshuttle-launch` command and, inside the package, a
+self-contained plugin for each host. The commands below refer to it as `$P`:
+
+```bash
+P="$(npm root -g)/taskshuttle"
+```
+
+Connect **one** host, or several — each is independent:
+
+```bash
+# Claude Code
+claude plugin marketplace add "$P/marketplaces/claude-code"
+claude plugin install taskshuttle@taskshuttle --scope user -y
+```
+
+```bash
+# Codex
+codex plugin marketplace add "$P/marketplaces/codex"
+codex plugin add taskshuttle@taskshuttle
+```
+
+For **OpenCode**, add this entry to `~/.config/opencode/opencode.json` under
+`mcp` and restart OpenCode. It needs only the global command, so there is no
+marketplace step:
+
+```json
+{
+  "taskshuttle": {
+    "type": "local",
+    "command": ["taskshuttle-launch"]
+  }
+}
+```
+
+**If a marketplace named `taskshuttle` is already registered** — because you
+installed from a clone before — the host refuses to add a second source under
+that name. Remove the old one first:
+
+```bash
+claude plugin marketplace remove taskshuttle
+codex plugin marketplace remove taskshuttle
+```
+
+#### Kimi
+
+Kimi has two extra steps. Start it from the project you want to work on with
+the project directory explicitly pinned:
+
+```bash
+cd /path/to/your/project
+TASKSHUTTLE_HOST_CWD="$PWD" kimi
+```
+
+This launch form avoids the Kimi managed-plugin working-directory permission
+problem. In the Kimi session, install the plugin once and reload it:
+
+```text
+/plugins install <path>/hosts/kimi
+/reload
+```
+
+`<path>` is `$(npm root -g)/taskshuttle` for an npm install, or the clone's
+root if you built from source. Kimi's own manifest names the global
+`taskshuttle-launch` command, so the directory is self-contained either way.
+
+Use the explicit `TASKSHUTTLE_HOST_CWD="$PWD" kimi` form whenever Kimi is
+working on TaskShuttle's own source; it is also safe to use for every project.
+
+#### Install from source instead
+
+Building from a clone installs every host available on your machine in one
+step, which is what you want if you are changing TaskShuttle itself:
 
 ```bash
 git clone <your-taskshuttle-repository>
@@ -35,63 +117,6 @@ CLIs are present. If Kimi is present, it syncs Kimi after its one-time in-sessio
 bootstrap; otherwise it prints the bootstrap command for you. Have at least
 one host CLI installed and logged in before running it. Restart the host (or
 reload its plugins) after deployment.
-
-#### Install only one host
-
-If you do not want to configure every host, build once and install the shared
-launcher, then run only the host command you need:
-
-```bash
-pnpm install
-pnpm check
-npm pack --pack-destination release ./packages/plugin
-npm install -g ./release/taskshuttle-$(node -p "require('./packages/plugin/package.json').version").tgz
-```
-
-Run the relevant block from the repository root:
-
-```bash
-# Codex
-codex plugin marketplace add "$PWD/marketplaces/codex"
-codex plugin add taskshuttle@taskshuttle
-```
-
-```bash
-# Claude Code
-claude plugin marketplace add "$PWD/marketplaces/claude-code"
-claude plugin install taskshuttle@taskshuttle --scope user -y
-```
-
-For OpenCode, add this entry to `~/.config/opencode/opencode.json` under
-`mcp` and restart OpenCode:
-
-```json
-{
-  "taskshuttle": {
-    "type": "local",
-    "command": ["taskshuttle-launch"]
-  }
-}
-```
-
-Kimi has two extra steps. Start it from the project you want to work on with
-the project directory explicitly pinned:
-
-```bash
-cd /path/to/your/project
-TASKSHUTTLE_HOST_CWD="$PWD" kimi
-```
-
-This launch form avoids the Kimi managed-plugin working-directory permission
-problem. In the Kimi session, install the plugin once and reload it:
-
-```text
-/plugins install /absolute/path/to/taskshuttle/hosts/kimi
-/reload
-```
-
-Use the explicit `TASKSHUTTLE_HOST_CWD="$PWD" kimi` form whenever Kimi hosts
-this repository itself; it is also safe to use for every project.
 
 ### 2. Ask another engine to work
 

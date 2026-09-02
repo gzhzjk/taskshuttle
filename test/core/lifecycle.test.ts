@@ -18,6 +18,52 @@ describe('instance lifecycle', () => {
     await expect(stat(manager.lockPath)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
+  it('NANNY-029: records the host process it was started by, in both files or in neither', async () => {
+    // The nanny hook cannot call a tool, so this pair is how a host session's
+    // own instance is established for it (ADR 0057). Both halves or neither: a
+    // pid without a start time can never be matched, and writing it alone puts
+    // a half-identity on disk that reads like evidence.
+    const root = await mkdtemp(join(tmpdir(), 'taskshuttle-life-host-pid-'));
+    const manager = await InstanceManager.create({
+      dataRoot: root, rootNonce: 'a'.repeat(32),
+      hostPid: 4_242, hostProcessStartedAt: 'Mon Sep  1 12:00:00 2026',
+    });
+    const manifest = JSON.parse(await readFile(manager.manifestPath, 'utf8'));
+    expect(manifest.hostPid).toBe(4_242);
+    expect(manifest.hostProcessStartedAt).toBe('Mon Sep  1 12:00:00 2026');
+    // The lock is written from the same object, which is what makes the two
+    // files agree without a second code path.
+    expect(JSON.parse(await readFile(manager.lockPath, 'utf8')).hostPid).toBe(4_242);
+    await manager.close();
+  });
+
+  it('NANNY-029: a host pid that is not a process records neither field', async () => {
+    // `ppid` becomes 1 once a parent has exited, and nothing under pid 1 is a
+    // host session. Recording it would give every re-parented instance the same
+    // "identity" and let any hook match any of them.
+    const root = await mkdtemp(join(tmpdir(), 'taskshuttle-life-orphan-'));
+    const manager = await InstanceManager.create({
+      dataRoot: root, rootNonce: 'a'.repeat(32),
+      hostPid: 1, hostProcessStartedAt: 'Mon Sep  1 12:00:00 2026',
+    });
+    const manifest = JSON.parse(await readFile(manager.manifestPath, 'utf8'));
+    expect(manifest.hostPid).toBeUndefined();
+    expect(manifest.hostProcessStartedAt).toBeUndefined();
+    await manager.close();
+  });
+
+  it('NANNY-029: a host whose start time cannot be read records neither field', async () => {
+    // The rule that makes the pair an identity rather than a hint. 4194305 is
+    // above Linux's default `pid_max` and far above darwin's ceiling, so the
+    // start-time read has no process to answer about and returns nothing.
+    const root = await mkdtemp(join(tmpdir(), 'taskshuttle-life-unreadable-'));
+    const manager = await InstanceManager.create({ dataRoot: root, rootNonce: 'a'.repeat(32), hostPid: 4_194_305 });
+    const manifest = JSON.parse(await readFile(manager.manifestPath, 'utf8'));
+    expect(manifest.hostPid).toBeUndefined();
+    expect(manifest.hostProcessStartedAt).toBeUndefined();
+    await manager.close();
+  });
+
   it('rewrites the display-only host label without touching the lock copy', async () => {
     const root = await mkdtemp(join(tmpdir(), 'taskshuttle-life-host-'));
     const manager = await InstanceManager.create({ dataRoot: root, rootNonce: 'a'.repeat(32), now: () => '2026-01-01T00:00:00.000Z' });

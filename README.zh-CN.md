@@ -1,11 +1,15 @@
 ---
 source: README.md
-source-sha256: 59a6ee3f1d179a809783b6ea17b40f5b182f599df3f5eee9ae56370b345ce7c4
+source-sha256: fd85e4bf34d458f429744a1d7cc8757616a71b7a344033968a43557d0ec3ab0a
 ---
 
 # TaskShuttle
 
 [English](README.md) | 简体中文
+
+[![ci](https://img.shields.io/github/actions/workflow/status/gzhzjk/taskshuttle/ci.yml?branch=main&label=ci&logo=github)](https://github.com/gzhzjk/taskshuttle/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/taskshuttle?label=npm)](https://www.npmjs.com/package/taskshuttle)
+[![license](https://img.shields.io/npm/l/taskshuttle?label=license)](LICENSE)
 
 TaskShuttle 让你正在使用的 coding agent 把一小段有边界的工作交给另一个
 coding agent。你始终留在同一段对话里：指定 worker、描述任务，然后收到结果和
@@ -22,7 +26,82 @@ coding agent。你始终留在同一段对话里：指定 worker、描述任务�
 
 ### 1. 安装 TaskShuttle
 
-最简单的方式是构建 plugin，并安装本机能找到的所有 host 集成：
+先安装包，再接上你使用的 host。请先安装并登录该 host 的 CLI，完成之后重启它
+——或 reload 它的 plugin。
+
+```bash
+npm install -g taskshuttle
+```
+
+这会给你 `taskshuttle-launch` 命令，包内还带着每个 host 各自自包含的 plugin。
+下面的命令用 `$P` 指代它：
+
+```bash
+P="$(npm root -g)/taskshuttle"
+```
+
+接**一个** host，或接多个——彼此独立：
+
+```bash
+# Claude Code
+claude plugin marketplace add "$P/marketplaces/claude-code"
+claude plugin install taskshuttle@taskshuttle --scope user -y
+```
+
+```bash
+# Codex
+codex plugin marketplace add "$P/marketplaces/codex"
+codex plugin add taskshuttle@taskshuttle
+```
+
+对于 **OpenCode**，把下面的内容加入 `~/.config/opencode/opencode.json` 的
+`mcp`，然后重启 OpenCode。它只需要那个全局命令，所以没有 marketplace 这一步：
+
+```json
+{
+  "taskshuttle": {
+    "type": "local",
+    "command": ["taskshuttle-launch"]
+  }
+}
+```
+
+**如果已经注册过名为 `taskshuttle` 的 marketplace**——比如你此前从克隆的仓库
+安装过——host 会拒绝在同一个名字下添加第二个来源。先移除旧的：
+
+```bash
+claude plugin marketplace remove taskshuttle
+codex plugin marketplace remove taskshuttle
+```
+
+#### Kimi
+
+Kimi 还需要两个额外步骤。先在要工作的项目目录中，用显式项目目录启动：
+
+```bash
+cd /path/to/your/project
+TASKSHUTTLE_HOST_CWD="$PWD" kimi
+```
+
+这种启动方式可以避开 Kimi 托管 plugin 的工作目录权限问题。在 Kimi 会话中
+首次安装 plugin，然后 reload：
+
+```text
+/plugins install <path>/hosts/kimi
+/reload
+```
+
+从 npm 安装时 `<path>` 是 `$(npm root -g)/taskshuttle`，从源码构建时则是克隆
+出来的仓库根目录。Kimi 自己的 manifest 里写的是全局的 `taskshuttle-launch`
+命令，所以这个目录两种情况下都是自包含的。
+
+当 Kimi 处理的是 TaskShuttle 自己的源码时，必须使用显式的
+`TASKSHUTTLE_HOST_CWD="$PWD" kimi`；对其他项目使用它也没有问题。
+
+#### 改为从源码安装
+
+从克隆的仓库构建会一步装好本机上所有可用的 host——如果你要改动 TaskShuttle
+本身，这才是你想要的：
 
 ```bash
 git clone <your-taskshuttle-repository>
@@ -37,62 +116,6 @@ pnpm run deploy --scope user
 Kimi，则会在完成一次会话内 bootstrap 后同步 Kimi；否则会打印 bootstrap 命令供你
 执行。运行前请至少安装并登录一个 host CLI。部署后重启 host（或 reload 它的
 plugin）。
-
-#### 只安装一个 host
-
-如果不想配置所有 host，可以先构建并安装共享 launcher，再只运行需要的 host
-命令：
-
-```bash
-pnpm install
-pnpm check
-npm pack --pack-destination release ./packages/plugin
-npm install -g ./release/taskshuttle-$(node -p "require('./packages/plugin/package.json').version").tgz
-```
-
-在仓库根目录运行对应的命令块：
-
-```bash
-# Codex
-codex plugin marketplace add "$PWD/marketplaces/codex"
-codex plugin add taskshuttle@taskshuttle
-```
-
-```bash
-# Claude Code
-claude plugin marketplace add "$PWD/marketplaces/claude-code"
-claude plugin install taskshuttle@taskshuttle --scope user -y
-```
-
-对于 OpenCode，把下面的内容加入 `~/.config/opencode/opencode.json` 的 `mcp`，
-然后重启 OpenCode：
-
-```json
-{
-  "taskshuttle": {
-    "type": "local",
-    "command": ["taskshuttle-launch"]
-  }
-}
-```
-
-Kimi 还需要两个额外步骤。先在要工作的项目目录中，用显式项目目录启动：
-
-```bash
-cd /path/to/your/project
-TASKSHUTTLE_HOST_CWD="$PWD" kimi
-```
-
-这种启动方式可以避开 Kimi 托管 plugin 的工作目录权限问题。在 Kimi 会话中
-首次安装 plugin，然后 reload：
-
-```text
-/plugins install /absolute/path/to/taskshuttle/hosts/kimi
-/reload
-```
-
-当 Kimi host 的项目就是本仓库时，必须使用显式的
-`TASKSHUTTLE_HOST_CWD="$PWD" kimi`；对其他项目使用它也没有问题。
 
 ### 2. 让另一个 engine 工作
 

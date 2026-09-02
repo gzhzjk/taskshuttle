@@ -1,6 +1,6 @@
 {
   "name": "taskshuttle",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TaskShuttle delegates coding tasks to Codex, Claude Code, OpenCode, and other coding-agent workers over MCP.",
   "keywords": [
     "mcp",

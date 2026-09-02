@@ -21,8 +21,9 @@
     "release:workflow": "tsx scripts/workflow-gate.ts",
     "release:console": "tsx scripts/live-console.ts",
     "docs:translations:check": "node scripts/verify-published-documents.mjs",
+    "docs:links:check": "node scripts/check-doc-links.mjs",
     "deploy": "tsx scripts/deploy.ts",
-    "check": "pnpm typecheck && pnpm build && pnpm test && pnpm artifact-gate"
+    "check": "pnpm typecheck && pnpm build && pnpm test && pnpm artifact-gate && pnpm docs:links:check"
   },
   "devDependencies": {
     "@taskshuttle/core": "workspace:0.1.0",

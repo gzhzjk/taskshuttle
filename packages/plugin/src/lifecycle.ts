@@ -20,6 +20,24 @@ export interface InstanceManifest {
    * silently inert. An instance without it is simply never matched.
    */
   processStartedAt?: string;
+  /**
+   * The process that started this instance — its host — and that process's
+   * canonical start time (ADR 0057).
+   *
+   * The nanny Stop hook is spawned by the same host, so the instance serving a
+   * host session and that session's hook are siblings under this pid. It is the
+   * only identity available to a hook that cannot call a tool, and §12's
+   * sentence about one instance per host session is what it establishes.
+   *
+   * **Both fields or neither.** A pid without a start time can never be matched
+   * — the match requires both, because a bare pid is reused — so recording one
+   * alone would put a half-identity on disk that reads like evidence. Written
+   * through the same `processStartTime` helper as `processStartedAt`, and for
+   * the same reason: a manufactured timestamp makes writer and reader
+   * incomparable and the boundary silently inert.
+   */
+  hostPid?: number;
+  hostProcessStartedAt?: string;
   tokenHash: string;
   exePath: string;
   /** The delegation verdict this instance settled at boot (ADR 0031). */
@@ -51,6 +69,26 @@ async function currentExePath(pid: number): Promise<string | undefined> {
   }
   const command = (await ps(['-p', String(pid), '-o', 'comm=']))?.trim();
   return command !== undefined && command.length > 0 ? command : undefined;
+}
+
+/**
+ * The host process's identity, for the manifest (ADR 0057).
+ *
+ * @param pid - the process that started this instance, normally `process.ppid`.
+ * @param known - a start time the caller already has; tests supply it so no
+ *   real process has to exist.
+ * @returns both fields, or an empty object. Never one of the two: the hook's
+ *   match needs the pid *and* the start time, so a pid on its own can never be
+ *   matched, and writing it alone would leave a half-identity on disk that
+ *   reads like evidence. A pid that is not a plausible process — 0 or 1, which
+ *   is what `ppid` becomes once a parent has exited — records nothing, because
+ *   nothing under it is a host session.
+ */
+async function hostIdentity(pid: number, known?: string): Promise<{ hostPid?: number; hostProcessStartedAt?: string }> {
+  if (!Number.isSafeInteger(pid) || pid <= 1) return {};
+  const startedAt = known ?? await processStartTime(pid);
+  if (startedAt === undefined || startedAt.length === 0) return {};
+  return { hostPid: pid, hostProcessStartedAt: startedAt };
 }
 
 /** The default inspector, exported for the console-open liveness check (console-design §8.2). */
@@ -131,7 +169,7 @@ export class InstanceManager {
     this.manifestPath = join(instanceDir, 'instance.json'); this.lockPath = join(instanceDir, 'instance.lock');
   }
 
-  static async create(options: { dataRoot: string; instanceId?: string; host?: string; pid?: number; processStartedAt?: string; exePath?: string; rootNonce: string; launchTokenHash?: string; delegation?: InstanceManifest['delegation']; now?: () => string }): Promise<InstanceManager> {
+  static async create(options: { dataRoot: string; instanceId?: string; host?: string; pid?: number; processStartedAt?: string; exePath?: string; hostPid?: number; hostProcessStartedAt?: string; rootNonce: string; launchTokenHash?: string; delegation?: InstanceManifest['delegation']; now?: () => string }): Promise<InstanceManager> {
     const dataRoot = resolve(options.dataRoot);
     await mkdir(dataRoot, { recursive: true, mode: 0o700 });
     await ensureMode(dataRoot, 0o700, true);
@@ -144,7 +182,8 @@ export class InstanceManager {
     const pid = options.pid ?? process.pid;
     const ownIdentity = options.processStartedAt === undefined || options.exePath === undefined ? await defaultInspect(pid) : undefined;
     if (options.launchTokenHash !== undefined && !/^[a-f0-9]{64}$/i.test(options.launchTokenHash)) throw new Error('invalid launch token hash');
-    const manifest: InstanceManifest = { instanceId: id, createdAt: now(), host: options.host ?? process.platform, pid, ...(((): { processStartedAt?: string } => { const started = options.processStartedAt ?? ownIdentity?.processStartedAt; return started === undefined ? {} : { processStartedAt: started }; })()), tokenHash: createHash('sha256').update(options.rootNonce).digest('hex'), exePath: options.exePath ?? ownIdentity?.exePath ?? process.execPath, ...(options.launchTokenHash === undefined ? {} : { launchTokenHash: options.launchTokenHash.toLowerCase() }), ...(options.delegation === undefined ? {} : { delegation: options.delegation }) };
+    const host = await hostIdentity(options.hostPid ?? process.ppid, options.hostProcessStartedAt);
+    const manifest: InstanceManifest = { instanceId: id, createdAt: now(), host: options.host ?? process.platform, pid, ...(((): { processStartedAt?: string } => { const started = options.processStartedAt ?? ownIdentity?.processStartedAt; return started === undefined ? {} : { processStartedAt: started }; })()), ...host, tokenHash: createHash('sha256').update(options.rootNonce).digest('hex'), exePath: options.exePath ?? ownIdentity?.exePath ?? process.execPath, ...(options.launchTokenHash === undefined ? {} : { launchTokenHash: options.launchTokenHash.toLowerCase() }), ...(options.delegation === undefined ? {} : { delegation: options.delegation }) };
     await writeFile(join(temp, 'instance.json'), json(manifest), { mode: 0o600, flag: 'wx' });
     await ensureMode(join(temp, 'instance.json'), 0o600, false);
     // Acquire the lock while the directory is still private, then publish the

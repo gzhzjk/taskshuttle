@@ -1,4 +1,4 @@
-import { mkdtemp, symlink } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DELEGATION_ENV } from '../../packages/plugin/src/security-policy.js';
 import { normaliseHookInput, runNannyHook, selectInstance } from '../../packages/plugin/src/nanny.js';
+import type { AncestryProbe } from '../../packages/plugin/src/delegation-evidence.js';
 import { createTaskShuttleServer, type TaskShuttleServer } from '../../packages/plugin/src/server.js';
 import { FakeRunskeinHub } from '../../packages/plugin/src/testkit/fake-runskein.js';
 
@@ -52,12 +53,89 @@ async function startPlugin(): Promise<{ plugin: TaskShuttleServer; dataRoot: str
   return { plugin, dataRoot };
 }
 
+/** The pid the hook is told it has; any number, since the probe below is a literal. */
+const HOOK_PID = 9_001;
+
+/**
+ * A process table in which the hook is a child of `hostPid` (ADR 0057).
+ *
+ * The real relationship — hook and instance as siblings under the host — cannot
+ * be built inside one test process, where the "hook" and the instance share a
+ * pid. Reading the real table instead would make these cases depend on where
+ * the vitest worker happens to sit, so the ancestry is a literal and what is
+ * under test is the match.
+ */
+function ancestryOf(hostPid: number, hostStartedAt: string | undefined): AncestryProbe {
+  return {
+    parentOf: async (pid) => (pid === HOOK_PID ? hostPid : undefined),
+    startedAt: async (pid) => (pid === hostPid ? hostStartedAt : undefined),
+  };
+}
+
+/**
+ * The host identity the running instance actually recorded, so the probe can
+ * match it. A data root with no instance answers a pid nothing claims, which is
+ * the honest shape for the cases that assert silence on an empty root.
+ */
+async function recordedHost(dataRoot: string): Promise<{ hostPid: number; hostProcessStartedAt: string }> {
+  const instances = join(dataRoot, 'instances');
+  const entries = await readdir(instances).catch(() => [] as string[]);
+  const [entry] = entries.filter((name) => !name.startsWith('.'));
+  if (entry === undefined) return { hostPid: 9_999, hostProcessStartedAt: 'no instance here' };
+  const manifest = JSON.parse(await readFile(join(instances, entry, 'instance.json'), 'utf8')) as
+    { hostPid?: number; hostProcessStartedAt?: string };
+  // NANNY-029's assertion, made on every hook case rather than once: an
+  // instance that recorded no host identity can never be matched, so a silent
+  // regression in the writer would make every case below pass for the wrong
+  // reason — the hook would be quiet because nothing matched.
+  expect(typeof manifest.hostPid).toBe('number');
+  expect(typeof manifest.hostProcessStartedAt).toBe('string');
+  return { hostPid: manifest.hostPid!, hostProcessStartedAt: manifest.hostProcessStartedAt! };
+}
+
+/**
+ * The seams every case needs: a literal ancestry, this file's pid, and a budget
+ * that is not racing a real `ps`. The three cases that call `runNannyHook`
+ * directly — they need the exit code or stderr, which `runHook` does not return
+ * — take the same seams from here rather than each rebuilding them.
+ */
+async function hookSeams(dataRoot: string): Promise<{ pid: number; probe: AncestryProbe; budgetMs: number }> {
+  const host = await recordedHost(dataRoot);
+  return { pid: HOOK_PID, probe: ancestryOf(host.hostPid, host.hostProcessStartedAt), budgetMs: UNRACED_BUDGET_MS };
+}
+
 /** Runs the hook the way a host does: a JSON payload in, at most one JSON object out. */
-async function runHook(dataRoot: string, payload: unknown, env: NodeJS.ProcessEnv = {}): Promise<string> {
+/**
+ * A budget long enough that no case here races a real `ps`.
+ *
+ * The hook spends one budget across `settleDelegation`'s ancestry walk — a
+ * process spawn per hop on darwin — and the state read. At the production
+ * second, a loaded machine does not finish, the verdict is `unavailable`, and
+ * the hook correctly falls silent; every case below that asserts it *speaks*
+ * then fails for a reason that is about the machine and not the decision it
+ * names. Two of them failed a release that way (GZH-116). The lapse has its own
+ * case, which asks for a budget it cannot meet.
+ */
+const UNRACED_BUDGET_MS = 60_000;
+
+async function runHook(
+  dataRoot: string,
+  payload: unknown,
+  env: NodeJS.ProcessEnv = {},
+  probe?: AncestryProbe,
+  budgetMs: number = UNRACED_BUDGET_MS,
+): Promise<string> {
   let out = '';
+  const resolved = probe ?? ancestryOf(...await (async (): Promise<[number, string]> => {
+    const host = await recordedHost(dataRoot);
+    return [host.hostPid, host.hostProcessStartedAt];
+  })());
   const code = await runNannyHook({
     env: { REALM_PLUGIN_DATA_ROOT: dataRoot, ...env },
     stdin: Readable.from([JSON.stringify(payload)]),
+    pid: HOOK_PID,
+    probe: resolved,
+    budgetMs,
     write: (text) => { out += text; },
   });
   // A hook that exits non-zero interferes with a host it was only observing.
@@ -141,6 +219,7 @@ describe('nanny hook', () => {
     // hook that allowed the stop, which is how this was found: the hook ran on
     // kimi and the model went on as if nothing had been said.
     const code = await runNannyHook({
+      ...await hookSeams(dataRoot),
       env: { REALM_PLUGIN_DATA_ROOT: dataRoot, KIMI_PLUGIN_ROOT: '/tmp/plugin' },
       // kimi's payload carries no transcript path and no permission mode; both
       // signals must agree before the exit-code form is used.
@@ -165,6 +244,7 @@ describe('nanny hook', () => {
     let out = '';
     let err = '';
     const code = await runNannyHook({
+      ...await hookSeams(dataRoot),
       // Neutral absolute path for the same reason as the one in
       // test/core/project-config.test.ts: this file is exported.
       env: { REALM_PLUGIN_DATA_ROOT: dataRoot, KIMI_CODE_HOME: '/absolute/kimi-code-home' },
@@ -180,6 +260,60 @@ describe('nanny hook', () => {
     expect((JSON.parse(out) as { decision?: string }).decision).toBe('block');
   });
 
+  it("NANNY-033: another session's instance is not read — not its turns, not its anchor", async () => {
+    // The GZH-82 regression, through the whole hook rather than through
+    // `selectInstance`: the anchor is read in `readState`, so a case that
+    // stopped at the selection would never observe the disclosure it exists to
+    // prevent. One live instance, a running turn and a written anchor, and a
+    // hook whose ancestry does not contain that instance's host.
+    const { plugin, dataRoot } = await startPlugin();
+    const cwd = await mkdtemp(join(tmpdir(), 'taskshuttle-nanny-cwd-'));
+    const turnId = await dispatchTurn(plugin, cwd);
+    const wrote = await plugin.invoke('anchor', { content: 'PRIVATE PLAN: ship the thing' });
+    expect(wrote.ok).toBe(true);
+
+    // Before ADR 0057 this is exactly the state that spoke: one live instance
+    // with a turn in this cwd, so the directory filter chose it.
+    const stranger: AncestryProbe = {
+      parentOf: async (pid) => (pid === HOOK_PID ? 4_242 : 1),
+      startedAt: async () => 'a host this hook never descended from',
+    };
+    const out = await runHook(dataRoot, { hook_event_name: 'Stop', cwd, stop_hook_active: false }, {}, stranger);
+    expect(out).toBe('');
+    expect(out).not.toContain(turnId);
+    expect(out).not.toContain('PRIVATE PLAN');
+  });
+
+  it('NANNY-034: the budget reaches both things that enforce one', async () => {
+    // Not timing, and it cannot be. `settleDelegation` holds its **own**
+    // `setTimeout(budgetMs)`, so a hook that widened only its outer race would
+    // still self-lapse inside the walk on a loaded machine and the fix would be
+    // inert — yet on an unloaded one the walk finishes in tens of milliseconds,
+    // so no case here can go red on the omission. Removing the threading was
+    // negative-tested and left the suite green, which is why this is a
+    // structural assertion instead of a silent hope.
+    const source = await readFile(join(process.cwd(), 'packages', 'plugin', 'src', 'nanny.ts'), 'utf8');
+    expect(source).toMatch(/settleDelegation\(\{[^}]*\bbudgetMs\b[^}]*\}\)/);
+    expect(source).not.toMatch(/settleDelegation\(\{[^}]*budgetMs:\s*BUDGET_MS[^}]*\}\)/);
+  });
+
+  it('NANNY-034: a budget it cannot meet is silence, not a guess', async () => {
+    // The path every case above depends on and none of them covered. The hook
+    // spends one budget across the delegation walk and the state read; when it
+    // lapses the verdict is `unavailable` and the contract is to say nothing
+    // (ADR 0015 §6) rather than block a session on state it could not read.
+    // Nothing asserted that, so when a loaded machine made the production
+    // second too short, six cases went red and the reason looked like a defect
+    // in the hook (GZH-116).
+    const { plugin, dataRoot } = await startPlugin();
+    const cwd = await mkdtemp(join(tmpdir(), 'taskshuttle-nanny-cwd-'));
+    await dispatchTurn(plugin, cwd);
+
+    // Same state that blocks in NANNY-001; only the budget differs.
+    const out = await runHook(dataRoot, { hook_event_name: 'Stop', cwd, stop_hook_active: false }, {}, undefined, 0);
+    expect(out).toBe('');
+  });
+
   it('NANNY-002: an empty data root is silence, not a block', async () => {
     const empty = await mkdtemp(join(tmpdir(), 'taskshuttle-nanny-empty-'));
     expect(await runHook(empty, { hook_event_name: 'Stop', cwd: empty, stop_hook_active: false })).toBe('');
@@ -189,6 +323,7 @@ describe('nanny hook', () => {
     const { dataRoot } = await startPlugin();
     let out = '';
     const code = await runNannyHook({
+      ...await hookSeams(dataRoot),
       env: { REALM_PLUGIN_DATA_ROOT: dataRoot },
       stdin: Readable.from(['not json at all']),
       write: (text) => { out += text; },
@@ -240,17 +375,99 @@ describe('nanny hook payload handling', () => {
     expect(normaliseHookInput('garbage').stopHookActive).toBe(true);
   });
 
-  it('refuses to guess which instance stopped when two are running in the same workspace', () => {
-    const entry = (id: string, cwd: string) => ({
-      instance: { instanceId: id, instanceDir: `/tmp/${id}`, createdAt: '2026-08-21T00:00:00.000Z' },
-      snapshot: { instanceId: id, updatedAt: '', seq: 1, turnsDispatched: 0, pendingInteractions: [], active: [{ turnId: 't', sessionId: 's', engine: 'codex', state: 'running' as const, cwd }] },
-    });
-    const a = entry('a', '/tmp/w');
-    const b = entry('b', '/tmp/w');
-    expect(selectInstance([a, b], '/tmp/w')).toBeUndefined();
-    expect(selectInstance([a], '/tmp/w')).toBe(a);
-    // No turn in this workspace: a single instance is still unambiguous.
-    expect(selectInstance([a], '/tmp/other')).toBe(a);
-    expect(selectInstance([a, b], '/tmp/other')).toBeUndefined();
+});
+
+/**
+ * Selection by identity (ADR 0057). The chains here are literals: what is under
+ * test is which instance the hook picks, not whether a real process table can
+ * be read.
+ */
+describe('which instance a stop belongs to', () => {
+  const entry = (id: string, host?: { hostPid: number; hostProcessStartedAt: string }) => ({
+    instance: { instanceId: id, instanceDir: `/tmp/${id}`, createdAt: '2026-08-21T00:00:00.000Z', ...(host ?? {}) },
+    snapshot: undefined,
+  });
+
+  /** A chain given nearest-first from pid 500, each entry with its start time. */
+  const chain = (hops: { pid: number; startedAt?: string }[]): AncestryProbe => {
+    const pids = [500, ...hops.map((hop) => hop.pid)];
+    return {
+      parentOf: async (pid) => { const index = pids.indexOf(pid); return index === -1 || index + 1 >= pids.length ? 1 : pids[index + 1]; },
+      startedAt: async (pid) => hops.find((hop) => hop.pid === pid)?.startedAt,
+    };
+  };
+
+  it('NANNY-030: the nearest ancestor that matches wins', async () => {
+    const near = entry('near', { hostPid: 600, hostProcessStartedAt: 'T600' });
+    const far = entry('far', { hostPid: 700, hostProcessStartedAt: 'T700' });
+    const probe = chain([{ pid: 600, startedAt: 'T600' }, { pid: 700, startedAt: 'T700' }]);
+    // Order in the candidate list must not decide it; the chain must.
+    expect(await selectInstance([far, near], { pid: 500, probe })).toBe(near);
+  });
+
+  it('NANNY-031: a matching pid with a different start time is not a match', async () => {
+    const stale = entry('stale', { hostPid: 600, hostProcessStartedAt: 'T600' });
+    // Same pid, reused by a different process. Walking on finds nothing else.
+    const probe = chain([{ pid: 600, startedAt: 'T600-but-reused' }]);
+    expect(await selectInstance([stale], { pid: 500, probe })).toBeUndefined();
+  });
+
+  it('NANNY-023: two instances naming the same host process yield nothing', async () => {
+    const a = entry('a', { hostPid: 600, hostProcessStartedAt: 'T600' });
+    const b = entry('b', { hostPid: 600, hostProcessStartedAt: 'T600' });
+    const probe = chain([{ pid: 600, startedAt: 'T600' }]);
+    expect(await selectInstance([a, b], { pid: 500, probe })).toBeUndefined();
+  });
+
+  it('NANNY-032: a lone live instance whose host is nowhere in the chain is not chosen', async () => {
+    // The GZH-82 shape at the selection level: being the only instance on the
+    // machine is not evidence of being the right one.
+    const other = entry('other', { hostPid: 999, hostProcessStartedAt: 'T999' });
+    const probe = chain([{ pid: 600, startedAt: 'T600' }]);
+    expect(await selectInstance([other], { pid: 500, probe })).toBeUndefined();
+  });
+
+  it('NANNY-029: an instance that recorded no host identity is never matched', async () => {
+    const legacy = entry('legacy');
+    const probe = chain([{ pid: 600, startedAt: 'T600' }]);
+    expect(await selectInstance([legacy], { pid: 500, probe })).toBeUndefined();
+  });
+
+  it('NANNY-029: a half identity is not an identity — a pid without a start time is skipped', async () => {
+    // The writer records both or neither. This pins the reader's half of that
+    // rule — a record with a pid alone is never matched — which the start-time
+    // comparison enforces, not the skip that keeps such records out of the map.
+    const half = { instance: { instanceId: 'half', instanceDir: '/tmp/half', createdAt: '2026-08-21T00:00:00.000Z', hostPid: 600 }, snapshot: undefined };
+    const probe = chain([{ pid: 600, startedAt: 'T600' }]);
+    expect(await selectInstance([half], { pid: 500, probe })).toBeUndefined();
+  });
+
+  it('NANNY-031: an ancestor whose start time cannot be read is not a match', async () => {
+    const claimant = entry('claimant', { hostPid: 600, hostProcessStartedAt: 'T600' });
+    const probe = chain([{ pid: 600 }]);
+    expect(await selectInstance([claimant], { pid: 500, probe })).toBeUndefined();
+  });
+
+  it('NANNY-032: a walk that cannot read a parent establishes nothing', async () => {
+    const claimant = entry('claimant', { hostPid: 600, hostProcessStartedAt: 'T600' });
+    const blind: AncestryProbe = { parentOf: async () => undefined, startedAt: async () => 'T600' };
+    expect(await selectInstance([claimant], { pid: 500, probe: blind })).toBeUndefined();
+  });
+
+  it('NANNY-032: a chain longer than the bound establishes nothing', async () => {
+    // An unbounded walk in a path a person is waiting on is a hang waiting for
+    // a pathological process table (mvp §5.2's reasoning, same bound).
+    const claimant = entry('claimant', { hostPid: 600, hostProcessStartedAt: 'T600' });
+    const ladder: AncestryProbe = { parentOf: async (pid) => pid + 1, startedAt: async () => 'T600' };
+    expect(await selectInstance([claimant], { pid: 500, probe: ladder, maxHops: 3 })).toBeUndefined();
+    // …and with room to reach it, the same chain matches: the bound is what
+    // refused, not the chain.
+    expect(await selectInstance([claimant], { pid: 500, probe: ladder, maxHops: 200 })).toBe(claimant);
+  });
+
+  it('NANNY-032: a cycle in the chain is not a finished walk', async () => {
+    const claimant = entry('claimant', { hostPid: 600, hostProcessStartedAt: 'T600' });
+    const looping: AncestryProbe = { parentOf: async (pid) => (pid === 500 ? 400 : 500), startedAt: async () => 'T600' };
+    expect(await selectInstance([claimant], { pid: 500, probe: looping })).toBeUndefined();
   });
 });

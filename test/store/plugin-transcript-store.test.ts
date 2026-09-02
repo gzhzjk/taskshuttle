@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readdir, realpath, rm, stat, symlink } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, realpath, rm, stat, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -306,6 +306,16 @@ describe('the session-meta marker the producer actually writes', () => {
       expect([...metaKeys].some((key) => key.endsWith('/sessionMeta'))).toBe(true);
       expect(metaKeys).toContain('runskein.dev/sessionMeta');
       expect([...metaKeys].filter((key) => key.startsWith('realm.dev/'))).toEqual([]);
+
+      // The console's browser bundle holds a **third** copy of this literal
+      // (GZH-80): it cannot import the store's, which is server code, and it
+      // reads the same marker to show the engine's own session id. Pinning it
+      // here rather than in a console test is deliberate — this is the one
+      // place that knows what the producer actually wrote, so a rename caught
+      // here catches every reader at once instead of leaving the console
+      // silently showing nothing.
+      const ui = await readFile(join(process.cwd(), 'packages', 'plugin', 'src', 'console', 'ui', 'app.js'), 'utf8');
+      for (const key of metaKeys) expect(ui).toContain(`'${key}'`);
     } finally { db.close(); }
   }, 30_000);
 });

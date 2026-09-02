@@ -59,6 +59,15 @@ export interface LiveInstance {
   readonly instanceId: string;
   readonly instanceDir: string;
   readonly createdAt: string;
+  /**
+   * The host process this instance was started by, and that process's start
+   * time — both or neither (ADR 0057). Carried here because the walk already
+   * reads the manifest to establish liveness, so the nanny's identity match
+   * costs no second read. Absent on every instance written before ADR 0057, and
+   * such an instance is never matched.
+   */
+  readonly hostPid?: number;
+  readonly hostProcessStartedAt?: string;
 }
 
 /**
@@ -86,7 +95,13 @@ export async function findLiveInstances(
     if (!(await lockAlive(instanceDir, inspect))) continue;
     const manifest = (await readInstanceJson(join(instanceDir, 'instance.json'))) as InstanceManifest | undefined;
     if (manifest === undefined || typeof manifest.instanceId !== 'string') continue;
-    live.push({ instanceId: manifest.instanceId, instanceDir, createdAt: String(manifest.createdAt ?? '') });
+    // Both or neither, read the way the writer wrote them: a manifest carrying
+    // only one of the pair is not a usable identity and is treated as absent.
+    const host = typeof manifest.hostPid === 'number' && Number.isSafeInteger(manifest.hostPid) && manifest.hostPid > 1
+      && typeof manifest.hostProcessStartedAt === 'string' && manifest.hostProcessStartedAt.length > 0
+      ? { hostPid: manifest.hostPid, hostProcessStartedAt: manifest.hostProcessStartedAt }
+      : {};
+    live.push({ instanceId: manifest.instanceId, instanceDir, createdAt: String(manifest.createdAt ?? ''), ...host });
   }
   return live.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

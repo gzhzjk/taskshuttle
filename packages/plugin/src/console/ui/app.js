@@ -2008,6 +2008,86 @@ function closeSessionStream() {
   if (state.sessionStream !== null) closeStream(state.sessionStream, state.sessionSuppression);
 }
 
+/** The marker Runskein writes on `session_info_update`; the plugin's store reads the same key. */
+const SESSION_META_KEY = 'runskein.dev/sessionMeta';
+
+/**
+ * Show the engine's own session id, so an operator can resume the session in
+ * that engine's CLI (GZH-80).
+ *
+ * The plugin's twenty tools have no resume: once a session is closed the only
+ * way to keep talking to it is the engine's own CLI, and that needs the id the
+ * engine assigned. Nothing else in this console shows it — the head shows
+ * `engine · name` and every tool result carries TaskShuttle's own session id.
+ *
+ * **Where the value comes from, and why it is a second request.** It rides in
+ * the first transcript event's `_meta`, and the backfill this pane runs asks
+ * for the *folded* projection, whose runs carry no `_meta` at all. So the id
+ * needs the raw projection's single-event fetch — the same `afterSeq/toSeq`
+ * pair the diff expansion already uses.
+ *
+ * **Degraded mode needs no rule here.** With `exposeTranscripts: false` the
+ * server projects every event to `{seq, ts, byteLen}`, so the marker never
+ * arrives and the row simply stays hidden. The boundary holds by construction
+ * rather than by a check somebody has to remember (console-design §7.8).
+ *
+ * **A missing id shows nothing.** Not a placeholder, and never TaskShuttle's
+ * own session id in its place: an id that looks resumable and is not costs the
+ * operator more than a blank row. Transcripts recorded under the pre-rename
+ * dependency project nothing at all (ADR 0041 decision 2), and a first event
+ * aged out by retention is the same case.
+ */
+async function loadResumeId(sessionId, epoch) {
+  const row = $('tx-resume');
+  const path = `/api/sessions/${encodeURIComponent(sessionId)}/events?afterSeq=0&toSeq=1`;
+  let page;
+  try {
+    page = await api(path);
+  } catch {
+    // Silent: the id is a convenience, and a failure row for it would sit
+    // beside a transcript that loaded perfectly well.
+    return;
+  }
+  if (epoch !== state.selectEpoch || state.activeSessionId !== sessionId) return;
+  const first = Array.isArray(page.events) ? page.events[0] : undefined;
+  const meta = first?.update?._meta?.[SESSION_META_KEY];
+  const nativeSessionId = meta === null || typeof meta !== 'object' ? undefined : meta.nativeSessionId;
+  if (typeof nativeSessionId !== 'string' || nativeSessionId === '') return;
+  $('tx-resume-id').textContent = nativeSessionId;
+  $('tx-resume-id').title = nativeSessionId;
+  row.hidden = false;
+}
+
+/**
+ * Put the resume id on the clipboard, and say plainly when that did not work.
+ *
+ * `navigator.clipboard` is present on a secure context, and `127.0.0.1` is one
+ * — but the write can still be refused, and a button that silently does
+ * nothing is worse than one that says so. Either way the value stays
+ * selectable, which is the fallback that needs no permission.
+ */
+async function copyResumeId() {
+  const value = $('tx-resume-id').textContent;
+  const note = $('tx-resume-note');
+  if (value === '') return;
+  try {
+    await navigator.clipboard.writeText(value);
+    note.textContent = 'copied';
+  } catch {
+    note.textContent = 'could not copy — select it instead';
+  }
+  note.hidden = false;
+}
+
+/** Hide the resume row and its transient note; a new selection starts with neither. */
+function clearResumeId() {
+  $('tx-resume').hidden = true;
+  $('tx-resume-id').textContent = '';
+  $('tx-resume-id').title = '';
+  $('tx-resume-note').hidden = true;
+  $('tx-resume-note').textContent = '';
+}
+
 function selectSession(sessionId) {
   closeSessionStream();
   const epoch = ++state.selectEpoch;
@@ -2017,6 +2097,8 @@ function selectSession(sessionId) {
   resetTranscriptView({ folder: createFolder(), deleted: false });
   const s = state.sessions.find((x) => x.sessionId === sessionId);
   $('tx-title').textContent = s ? `${s.engine} · ${sessionLabel(s)}` : shortId(sessionId);
+  clearResumeId();
+  void loadResumeId(sessionId, epoch);
   renderSessions();
   if (state.txView === 'diff') void enterDiffView();
   backfillSession(sessionId, epoch)
@@ -2333,6 +2415,7 @@ async function refreshCollections() {
     resetTranscriptView({ folder: null, deleted: false });
     setTxView('transcript');
     $('tx-title').textContent = 'no session selected';
+    clearResumeId();
   }
   if (state.activeSessionId === null && state.sessions.length > 0) selectSession(state.sessions[0].sessionId);
   scheduleTopologyRefresh();
@@ -2393,6 +2476,7 @@ async function init() {
   // first-frame flash in the default theme is possible (console-v2 §4.7
   // records the compromise).
   try { setTheme(localStorage.getItem('taskshuttle-console-theme') || 'dark'); } catch (e) { /* default dark */ }
+  $('tx-resume-copy').onclick = () => { void copyResumeId(); };
   $('theme-toggle').onclick = () =>
     setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
   document.querySelectorAll('.view-tabs:not(.tx-tabs) .vt').forEach((b) => { b.onclick = () => setView(b.dataset.view); });

@@ -1,11 +1,11 @@
 {
   "source": "Phase 0 vitest-collection-baseline.json",
   "fileCount": 73,
-  "caseCount": 975,
-  "allowedFileCount": 8,
-  "allowedCaseCount": 60,
+  "caseCount": 974,
+  "allowedFileCount": 10,
+  "allowedCaseCount": 101,
   "filesSha256": "b026a66a8f21b54abbc5eb1f67ca0bddec7a305dae85b14593a4524058417041",
-  "casesSha256": "b372346a004acf155c9c0956c61c6e72bcfc7eef99e0a12e7efa2817c75a1bb2",
+  "casesSha256": "e7dbf1e8669c2b627e26e263db7b3053ccaad1647270fa4a95308b964b670d61",
   "allowedAdditions": [
     {
       "file": "test/core/prompt-capability-gate.test.ts",
@@ -246,6 +246,170 @@
     {
       "file": "test/core/host-artifacts.test.ts",
       "name": "host artifacts > validates the public package dist rather than a stale root compatibility mirror"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "what counts as a link > ignores a bracket-then-paren inside a fenced block"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "what counts as a link > closes a fence only on its own marker, at least as long"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "what counts as a link > ignores an inline code span and keeps the prose around it"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "what counts as a link > drops external schemes and bare fragments, and strips a fragment from a path"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "what counts as a link > keeps a target that carries a title"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > passes when every local link resolves to a carried path or directory"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > checks the whole repository when run from a subdirectory"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > names the file, the line and the target of a link that does not resolve"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > refuses a link that resolves outside the repository"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > refuses a link to build output, which a clone does not have"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > covers a document added but not yet committed, and what it links"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > excuses a document that declares its paths historical, and reports the reason"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > resolves a link that names a directory with a trailing slash"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > reads the exemption only when it owns its line"
+    },
+    {
+      "file": "test/scripts/doc-links.test.ts",
+      "name": "the repository-wide check > refuses an exemption that excuses nothing"
+    },
+    {
+      "file": "test/core/lifecycle.test.ts",
+      "name": "instance lifecycle > NANNY-029: records the host process it was started by, in both files or in neither"
+    },
+    {
+      "file": "test/core/lifecycle.test.ts",
+      "name": "instance lifecycle > NANNY-029: a host pid that is not a process records neither field"
+    },
+    {
+      "file": "test/core/lifecycle.test.ts",
+      "name": "instance lifecycle > NANNY-029: a host whose start time cannot be read records neither field"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "nanny hook > NANNY-033: another session's instance is not read — not its turns, not its anchor"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-030: the nearest ancestor that matches wins"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-031: a matching pid with a different start time is not a match"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-023: two instances naming the same host process yield nothing"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-032: a lone live instance whose host is nowhere in the chain is not chosen"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-029: an instance that recorded no host identity is never matched"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-029: a half identity is not an identity — a pid without a start time is skipped"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-031: an ancestor whose start time cannot be read is not a match"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-032: a walk that cannot read a parent establishes nothing"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-032: a chain longer than the bound establishes nothing"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "which instance a stop belongs to > NANNY-032: a cycle in the chain is not a finished walk"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > shows the id the engine reported"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > reads it from the raw single-event range, not from the folded backfill"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > stays hidden when the marker is absent entirely — every pre-rename transcript (ADR 0041)"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > stays hidden when the marker carries no native id"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > stays hidden when the marker is not an object"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > stays hidden when the marker is null"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > stays hidden when the native id is an empty string"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > stays hidden in degraded mode, because the event carries no update at all"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > a row given a display keeps an explicit rule for its hidden state"
+    },
+    {
+      "file": "test/console/resume-id.test.ts",
+      "name": "CONSOLE-048: the engine's own session id in the transcript head > says so when the clipboard refuses, and leaves the value on screen"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "nanny hook > NANNY-034: the budget reaches both things that enforce one"
+    },
+    {
+      "file": "test/nanny/hook.test.ts",
+      "name": "nanny hook > NANNY-034: a budget it cannot meet is silence, not a guess"
     }
   ]
 }

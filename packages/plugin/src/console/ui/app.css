@@ -489,12 +489,35 @@ body::before {
 
 .transcript-head {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   padding: 13px 18px 10px;
   border-bottom: 1px solid var(--line);
   user-select: none;
 }
+.transcript-head .tx-head-row { display: flex; align-items: center; gap: 10px; }
+/* `hidden` is a UA `display: none`, which the rule above outranks; without this
+   the resume row shows empty on every session that has no native id. */
+.transcript-head .tx-head-row[hidden] { display: none; }
+.transcript-head .resume-label {
+  font-size: 11px;
+  color: var(--text-3);
+  flex: none;
+}
+.transcript-head .tx-resume .mono {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The copy button can fail — an insecure context, a browser that withholds the
+   permission — so the value stays selectable and the head's `user-select: none`
+   is lifted here rather than only around the button. */
+.transcript-head .selectable { user-select: text; }
+.transcript-head .resume-note { font-size: 11px; color: var(--text-3); flex: none; }
+.transcript-head .resume-note[hidden] { display: none; }
 .transcript-head .title { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .transcript-head .seq-range {
   font-family: var(--mono);

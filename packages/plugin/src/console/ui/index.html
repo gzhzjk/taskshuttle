@@ -54,13 +54,22 @@
   <section class="col col-transcript">
     <div class="transcript-wrap">
       <div class="transcript-head">
-        <span class="title" id="tx-title">no session selected</span>
-        <span class="seq-range mono" id="tx-seq"></span>
-        <div class="view-tabs tx-tabs" id="tx-tabs">
-          <button class="vt active" data-txview="transcript">Transcript</button>
-          <button class="vt" data-txview="diff">Diff</button>
+        <div class="tx-head-row">
+          <span class="title" id="tx-title">no session selected</span>
+          <span class="seq-range mono" id="tx-seq"></span>
+          <div class="view-tabs tx-tabs" id="tx-tabs">
+            <button class="vt active" data-txview="transcript">Transcript</button>
+            <button class="vt" data-txview="diff">Diff</button>
+          </div>
+          <div class="spacer"></div>
         </div>
-        <div class="spacer"></div>
+        <div class="tx-head-row tx-resume" id="tx-resume" hidden>
+          <span class="resume-label">resume</span>
+          <span class="mono selectable" id="tx-resume-id"></span>
+          <button class="ghost-btn" id="tx-resume-copy" type="button">copy</button>
+          <span class="resume-note" id="tx-resume-note" hidden></span>
+          <div class="spacer"></div>
+        </div>
       </div>
       <div class="stream" id="stream"></div>
       <div class="stream diff-stream" id="diff-stream"></div>

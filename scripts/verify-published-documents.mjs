@@ -4,7 +4,16 @@
  * translation. A translation declares the SHA-256 of the English source so an
  * English edit cannot leave a plausible-looking but stale Chinese document.
  *
- * Usage: `pnpm docs:translations:check [--release <version>]`.
+ * The pairs come from `docs/published-documents.json`, plus any pair named on
+ * the command line. **The caller names the extra pair rather than this script
+ * assembling a path**: it used to build the release note's path itself, which
+ * put an internal directory into a file that ships to the release repository —
+ * where that directory does not exist. The path now arrives from the release
+ * flow, which is withheld and is the thing that knows where its notes live.
+ *
+ * Usage:
+ *   pnpm docs:translations:check
+ *   pnpm docs:translations:check --pair <source.md> <source.zh-CN.md>
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -14,10 +23,10 @@ const root = resolve(import.meta.dirname, '..');
 // A package manager may pass its own `--` separator through to the script;
 // it carries no meaning here and would otherwise fail argument validation.
 const args = process.argv.slice(2).filter((arg) => arg !== '--');
-const releaseIndex = args.indexOf('--release');
-const releaseVersion = releaseIndex === -1 ? undefined : args[releaseIndex + 1];
-if (args.length !== 0 && (releaseIndex === -1 || args.length !== 2 || !releaseVersion)) {
-  console.error('usage: pnpm docs:translations:check [--release <version>]');
+const pairIndex = args.indexOf('--pair');
+const extraPair = pairIndex === -1 ? undefined : { source: args[pairIndex + 1], translation: args[pairIndex + 2] };
+if (args.length !== 0 && (pairIndex === -1 || args.length !== 3 || !extraPair?.source || !extraPair?.translation)) {
+  console.error('usage: pnpm docs:translations:check [--pair <source> <translation>]');
   process.exit(2);
 }
 
@@ -50,13 +59,7 @@ function verifyPair(source, translation) {
 }
 
 const manifest = JSON.parse(readFileSync(resolve(root, 'docs/published-documents.json'), 'utf8'));
-const pairs = [...manifest.documents];
-if (releaseVersion) {
-  pairs.push({
-    source: `docs/design/releases/${releaseVersion}.md`,
-    translation: `docs/design/releases/${releaseVersion}.zh-CN.md`,
-  });
-}
+const pairs = [...manifest.documents, ...(extraPair === undefined ? [] : [extraPair])];
 
 const failures = pairs.flatMap(({ source, translation }) => verifyPair(source, translation));
 if (failures.length > 0) {
